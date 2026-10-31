@@ -1,6 +1,6 @@
 # Brightloop: Subscription Management System
 
-Plans, subscriptions, recurring billing, payments and reporting in one app. See **[PLAN.md](PLAN.md)** for the requirements, the two-person split and the timeline.
+Plans, subscriptions, recurring billing, payments and reporting in one app. See **[PLAN.md](PLAN.md)** for the build plan and split (Person A backend, Person B frontend), **[docs/PRD.md](docs/PRD.md)** for the requirements, and **[docs/API_CONTRACT.md](docs/API_CONTRACT.md)** for the API contract.
 
 **Stack:** FastAPI + SQLAlchemy 2 + Alembic + PostgreSQL (Python 3.13) · React 19 + TypeScript + Vite + Tailwind 4 + React Router + TanStack Query
 
