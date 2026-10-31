@@ -12,11 +12,13 @@ export default function ResetPassword() {
   const [error, setError] = useState<ApiError>()
   const [pending, setPending] = useState(false)
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(undefined)
     if (!passwordIsValid(password)) return setError(new ApiError(422, 'Password too weak.', { password: 'Your password doesn’t meet all the rules below.' }))
+    if (password !== confirm) return setError(new ApiError(422, 'The two passwords don’t match.', { password: 'The two passwords don’t match.' }))
     setPending(true)
     try {
       await api.post('/auth/reset-password', { token, password })
@@ -49,7 +51,7 @@ export default function ResetPassword() {
         </div>
       ) : (
         <form onSubmit={onSubmit} className="mt-4 grid gap-4">
-          <PasswordField id="password" label="New password" value={password} onChange={setPassword} error={fields.password} />
+          <PasswordField id="password" label="New password" value={password} onChange={setPassword} confirm={confirm} onConfirm={setConfirm} error={fields.password} />
           {error && !fields.password && (
             <>
               <Alert>{error.message}</Alert>

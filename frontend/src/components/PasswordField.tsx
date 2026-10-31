@@ -11,6 +11,8 @@ export function PasswordField({
   onChange,
   error,
   autoComplete = 'new-password',
+  confirm,
+  onConfirm,
 }: {
   id: string
   name?: string
@@ -19,8 +21,13 @@ export function PasswordField({
   onChange: (value: string) => void
   error?: string
   autoComplete?: string
+  /** Pass both to add a "Re-enter password" box that must match. */
+  confirm?: string
+  onConfirm?: (value: string) => void
 }) {
+  const mismatch = confirm !== undefined && confirm.length > 0 && confirm !== value
   return (
+    <>
     <FormField label={label} htmlFor={id} error={error}>
       <Input
         id={id}
@@ -46,5 +53,11 @@ export function PasswordField({
         })}
       </ul>
     </FormField>
+    {confirm !== undefined && onConfirm && (
+      <FormField label="Re-enter password" htmlFor={`${id}-confirm`} error={mismatch ? 'The two passwords don’t match.' : undefined}>
+        <Input id={`${id}-confirm`} type="password" autoComplete={autoComplete} value={confirm} onChange={(e) => onConfirm(e.target.value)} required error={mismatch} />
+      </FormField>
+    )}
+    </>
   )
 }

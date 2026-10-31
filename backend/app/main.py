@@ -9,6 +9,7 @@ from app.core.errors import register_error_handlers
 from app.routers import (
     auth,
     customers,
+    dashboard,
     demo_gateway,
     discounts,
     invoices,
@@ -60,6 +61,7 @@ for module in (
     pricing,
     reports,
     portal_invoices,
+    dashboard,
     demo_gateway,
 ):
     app.include_router(module.router)

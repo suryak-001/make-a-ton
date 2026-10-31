@@ -30,6 +30,12 @@ function monthLabel(value: string) {
   return new Intl.DateTimeFormat('en-IN', { month: 'short', year: '2-digit' }).format(new Date(year, month - 1, 1))
 }
 
+/** Collected as a share of invoiced, so a weak month shows up without doing the sum. */
+function collectionRate(summary: Summary) {
+  const invoiced = Number(summary.invoiced)
+  return invoiced > 0 ? `${Math.round(Number(summary.collected) / invoiced * 100)}% of invoiced` : 'Cash received'
+}
+
 function compactMoney(value: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 1 }).format(value)
 }
@@ -41,11 +47,12 @@ export function FinanceOverview({ filters = {} }: { filters?: ReportFilters }) {
   const summary = useQuery({ queryKey: ['/reports', 'summary', filters], queryFn: () => api.get<Summary>(`/reports/summary${suffix}`) })
   const revenue = useQuery({ queryKey: ['/reports', 'revenue', filters], queryFn: () => api.get<RevenuePoint[]>(`/reports/revenue-by-month${suffix}`) })
   const overdue = useQuery({ queryKey: ['/reports', 'overdue', filters], queryFn: () => api.get<Invoice[]>(`/reports/overdue${qs({ plan_id: filters.plan_id, customer_id: filters.customer_id })}`) })
+  const GO: Record<string, string> = { active: '/subscriptions?status=ACTIVE', mrr: '/subscriptions?status=ACTIVE', invoiced: '/invoices', collected: '/payments' }
   const primary: [string, string, string, MetricKey][] = summary.data ? [
     ['Active subscriptions', String(summary.data.active_subscriptions), 'Live agreements', 'active'],
     ['Monthly revenue', money(summary.data.mrr), 'Net of discounts, before tax', 'mrr'],
     ['Invoiced', money(summary.data.invoiced), 'Confirmed + paid', 'invoiced'],
-    ['Collected', money(summary.data.collected), 'Cash received', 'collected'],
+    ['Collected', money(summary.data.collected), collectionRate(summary.data), 'collected'],
   ] : []
   const points = revenueTimeline(revenue.data ?? [], months)
   const max = Math.max(1, ...(points.flatMap((point) => [Number(point.invoiced), Number(point.collected)])))
@@ -54,7 +61,7 @@ export function FinanceOverview({ filters = {} }: { filters?: ReportFilters }) {
   return <div className="grid gap-5">
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {summary.isPending ? Array.from({ length: 4 }, (_, index) => <Card key={index} className="h-28 animate-pulse bg-paper" />) : primary.map(([label, value, hint, metric], index) => (
-        <Card key={label} className="relative overflow-hidden p-4" title={METRIC_DEFINITIONS[metric]}>
+        <Card key={label} className="relative cursor-pointer overflow-hidden p-4 transition-shadow hover:shadow-[3px_3px_0_#171713]" title={`${METRIC_DEFINITIONS[metric]} Click to see the records.`} role="link" tabIndex={0} onClick={() => navigate(GO[metric])} onKeyDown={(e) => e.key === 'Enter' && navigate(GO[metric])}>
           <span className={`absolute inset-x-0 top-0 h-1 ${ACCENTS[index]}`} />
           <div className="flex items-start justify-between gap-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.13em] text-muted">{label}</p>
@@ -96,13 +103,13 @@ export function FinanceOverview({ filters = {} }: { filters?: ReportFilters }) {
         </div> : <p className="py-16 text-center text-[13px] text-muted">Revenue appears after invoices are confirmed.</p>}
       </Card>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-        <Card className="relative overflow-hidden !border-ink !bg-ink p-5 !text-paper" title={METRIC_DEFINITIONS.outstanding}>
+        <Card className="relative cursor-pointer overflow-hidden !border-ink !bg-ink p-5 !text-paper transition-opacity hover:opacity-90" title={`${METRIC_DEFINITIONS.outstanding} Click to see the records.`} role="link" tabIndex={0} onClick={() => navigate('/invoices?status=CONFIRMED')} onKeyDown={(e) => e.key === 'Enter' && navigate('/invoices?status=CONFIRMED')}>
           <span className="absolute -right-7 -top-7 size-24 rounded-full border-[14px] border-yellow" />
           <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-paper/60">Outstanding</p>
           <p className="mt-8 text-[25px] font-medium tracking-[-0.04em]">{summary.data ? money(summary.data.outstanding) : '—'}</p>
           <p className="mt-2 text-[11px] text-paper/60">Still to collect</p>
         </Card>
-        <Card className="relative overflow-hidden !border-danger !bg-danger p-5 !text-paper" title={METRIC_DEFINITIONS.overdue}>
+        <Card className="relative cursor-pointer overflow-hidden !border-danger !bg-danger p-5 !text-paper transition-opacity hover:opacity-90" title={METRIC_DEFINITIONS.overdue} onClick={() => navigate('/invoices?overdue=1')}>
           <span className="absolute right-5 top-5 size-5 rotate-45 bg-yellow" />
           <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-paper/70">Overdue</p>
           <p className="mt-8 text-[25px] font-medium tracking-[-0.04em]">{summary.data ? money(summary.data.overdue_amount) : '—'}</p>

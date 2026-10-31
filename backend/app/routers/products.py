@@ -10,6 +10,7 @@ from app.core.errors import Conflict, Invalid
 from app.core.lookup import get_or_404
 from app.core.pagination import Page, Pages, like_pattern, paginate
 from app.models import Product, ProductVariant, Tax
+from app.schemas.active import ActiveIn
 from app.schemas.catalog import ProductIn, ProductOut
 
 router = APIRouter(prefix="/api/products", tags=["products"])
@@ -84,6 +85,15 @@ def update_product(product_id: int, body: ProductIn, db: Db, _: AdminUser):
     _apply(db, product, body)
     _commit(db, "A variant that's used by a subscription or template can't be removed. Edit it instead.")
     return product
+
+
+@router.patch("/{product_id}/active", response_model=ProductOut)
+def set_product_active(product_id: int, body: ActiveIn, db: Db, _: AdminUser):
+    """The quick switch on a list row: flips Active without re-sending the whole form."""
+    item = get_or_404(db, Product, product_id)
+    item.active = body.active
+    db.commit()
+    return item
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)

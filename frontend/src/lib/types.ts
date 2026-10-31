@@ -294,3 +294,36 @@ export type ReconcileResult = {
   amount_recorded: string
   results: { ref: string; status: 'recorded' | 'already_recorded' | 'failed'; message: string; invoice_number: string | null }[]
 }
+
+export type AgingBucket = { key: string; label: string; count: number; amount: string }
+
+export type Proof = {
+  subscriptions: number
+  invoices: number
+  payments: number
+  customers: number
+  duplicate_invoice_periods: number
+  last_invoice_at: string | null
+  measured_ms: number
+}
+
+export type SetupStep = { key: string; title: string; cta: string; href: string; done: boolean }
+
+export type WorkQueue = {
+  draft_invoices: number
+  overdue_invoices: number
+  renewals_due: { id: number; number: string; customer: string; plan: string; expiry_date: string; days_left: number; renewable: boolean; auto_close: boolean }[]
+  quotes_expiring: { id: number; number: string; customer: string; valid_until: string; days_left: number }[]
+  to_chase: { id: number; number: string | null; customer: string; due_date: string; days_overdue: number; outstanding: string; stage: string; reminded: boolean; last_reminder_at: string | null }[]
+}
+
+export type PortalHome = {
+  name: string
+  outstanding: string
+  overdue_count: number
+  overdue_amount: string
+  next_due: Invoice | null
+  alerts: { kind: 'danger' | 'warning' | 'success'; text: string; href: string | null }[]
+  subscriptions: { id: number; number: string; status: SubStatus; plan: string; billing_period: string; total: string; next_invoice_date: string | null; expiry_date: string | null; allowed_actions: string[] }[]
+  recent_invoices: Invoice[]
+}

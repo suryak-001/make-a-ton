@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { DataTable, Pagination } from '@/components/DataTable'
+import { EntityRowMenu } from '@/components/EntityRow'
 import { ExportLink } from '@/components/ExportLink'
 import { Input } from '@/components/forms'
 import { Modal } from '@/components/Modal'
@@ -51,6 +52,7 @@ export default function CustomerList() {
         rows={list.data?.items}
         rowKey={(c) => c.id}
         onRowClick={(c) => navigate(String(c.id))}
+        actions={(c) => <EntityRowMenu path="/customers" id={c.id} name={c.name} label="this customer" />}
         empty={debounced ? 'No customers match your search.' : 'No customers yet.'}
         columns={[
           { header: 'Name', cell: (c) => <span className="font-medium">{c.name}</span> },

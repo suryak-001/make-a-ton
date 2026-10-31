@@ -36,9 +36,12 @@ export function InvoiceActions({ invoice }: { invoice: Invoice }) {
       <div className="flex flex-wrap gap-2">
         {buttons.map((action, index) =>
           action === 'print' ? (
-            <a key={action} href={`/api/invoices/${invoice.id}/print`} target="_blank" rel="noreferrer" className={buttonClass('outline')}>
-              {ACTION_LABEL.print}
-            </a>
+            <span key={action} className="flex flex-wrap gap-2">
+              <a href={`/api/invoices/${invoice.id}/pdf`} download className={buttonClass('outline')}>Download PDF</a>
+              <a href={`/api/invoices/${invoice.id}/print`} target="_blank" rel="noreferrer" className={buttonClass('outline')}>
+                {ACTION_LABEL.print}
+              </a>
+            </span>
           ) : (
             <Button
               key={action}

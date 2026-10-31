@@ -13,12 +13,14 @@ export default function Signup() {
   const [error, setError] = useState<ApiError>()
   const [pending, setPending] = useState(false)
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     setError(undefined)
     if (!passwordIsValid(password)) return setError(new ApiError(422, 'Password too weak.', { password: 'Your password doesn’t meet all the rules below.' }))
+    if (password !== confirm) return setError(new ApiError(422, 'The two passwords don’t match.', { password: 'The two passwords don’t match.' }))
     setPending(true)
     try {
       const user = await signup(String(f.get('name')), String(f.get('email')), password)
@@ -44,7 +46,7 @@ export default function Signup() {
         <FormField label="Email" htmlFor="email" error={fields.email}>
           <Input id="email" name="email" type="email" autoComplete="email" required error={!!fields.email} />
         </FormField>
-        <PasswordField id="password" value={password} onChange={setPassword} error={fields.password} />
+        <PasswordField id="password" value={password} onChange={setPassword} confirm={confirm} onConfirm={setConfirm} error={fields.password} />
         {unmapped && <Alert>{error.message}</Alert>}
         <Button type="submit" disabled={pending}>
           {pending ? 'Creating account…' : 'Create account'}

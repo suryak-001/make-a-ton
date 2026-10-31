@@ -1,13 +1,16 @@
 import { Route, Routes } from 'react-router'
+import { RoutedModal } from '@/components/RoutedModal'
 import DiscountForm from './Form'
 import DiscountList from './List'
 
 export default function DiscountsPage() {
   return (
-    <Routes>
-      <Route index element={<DiscountList />} />
-      <Route path="new" element={<DiscountForm />} />
-      <Route path=":id" element={<DiscountForm />} />
-    </Routes>
+    <>
+      <DiscountList />
+      <Routes>
+        <Route path="new" element={<RoutedModal title="New discount" backTo="/discounts" wide><DiscountForm /></RoutedModal>} />
+        <Route path=":id" element={<RoutedModal title="Edit discount" backTo="/discounts" wide><DiscountForm /></RoutedModal>} />
+      </Routes>
+    </>
   )
 }

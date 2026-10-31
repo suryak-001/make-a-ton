@@ -1,10 +1,12 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { buttonClass } from '@/components/button-class'
 import { DataTable, Pagination } from '@/components/DataTable'
+import { EntityRowMenu, EntityStatus } from '@/components/EntityRow'
+import { useFlashId } from '@/lib/flash'
 import { Input, Select } from '@/components/forms'
-import { ActiveBadge } from '@/components/ActiveBadge'
 import { PageHeader } from '@/components/ui'
 import { api, type Page, qs } from '@/lib/api'
 import { useDebounced } from '@/lib/hooks'
@@ -16,6 +18,7 @@ export default function TaxList() {
   const [search, setSearch] = useState('')
   const [active, setActive] = useState('')
   const [page, setPage] = useState(1)
+  const flash = useFlashId()
   const q = useDebounced(search)
 
   const list = useQuery({
@@ -29,7 +32,7 @@ export default function TaxList() {
       <PageHeader
         title="Taxes"
         description="Tax rules are attached to products and applied to every quote and invoice line automatically."
-        actions={<Link to="new" className={buttonClass()}>New tax</Link>}
+        actions={<Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New tax</Link>}
       />
       <div className="mb-4 flex gap-3">
         <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search taxes…" aria-label="Search taxes" className="max-w-sm" />
@@ -45,11 +48,13 @@ export default function TaxList() {
         rowKey={(tax) => tax.id}
         onRowClick={(tax) => navigate(String(tax.id))}
         empty="No taxes found."
+        flashId={flash}
+        actions={(tax) => <EntityRowMenu path="/taxes" id={tax.id} name={tax.name} active={tax.active} label="this tax" />}
         columns={[
           { header: 'Name', cell: (tax) => <span className="font-medium">{tax.name}</span> },
           { header: 'Type', cell: (tax) => (tax.kind === 'PERCENT' ? 'Percentage' : 'Fixed per unit') },
           { header: 'Rate', className: 'text-right', cell: taxRateLabel },
-          { header: 'Status', cell: (tax) => <ActiveBadge active={tax.active} /> },
+          { header: 'Status', cell: (tax) => <EntityStatus path="/taxes" id={tax.id} active={tax.active} /> },
         ]}
       />
       {list.data && <Pagination page={page} pageSize={list.data.page_size} total={list.data.total} onPage={setPage} />}

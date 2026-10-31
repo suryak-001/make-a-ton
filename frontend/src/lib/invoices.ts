@@ -18,7 +18,7 @@ export const ACTION_LABEL: Record<InvoiceAction, string> = {
   cancel: 'Cancel invoice',
   pay: 'Record payment',
   send: 'Send to customer',
-  print: 'Print / PDF',
+  print: 'Print',
   rebill: 'Re-bill period',
 }
 

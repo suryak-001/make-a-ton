@@ -20,7 +20,10 @@ export default function PortalInvoiceDetail() {
         title={invoice.data?.number ?? 'Invoice'}
         actions={
           <div className="flex flex-wrap items-center gap-3">
-            <a href={`/api/portal-invoices/${id}/print`} target="_blank" rel="noreferrer" className="text-sm text-brand hover:underline">Print / PDF</a>
+            <span className="flex gap-4">
+              <a href={`/api/portal-invoices/${id}/pdf`} download className="text-sm font-medium text-brand hover:underline">Download PDF</a>
+              <a href={`/api/portal-invoices/${id}/print`} target="_blank" rel="noreferrer" className="text-sm text-brand hover:underline">Print</a>
+            </span>
             <Link to="/portal/invoices" className="text-sm text-muted hover:underline">← My invoices</Link>
             {invoice.data && canPayOnline(invoice.data) && <Button onClick={() => setPaying(true)}>Pay {money(invoice.data.outstanding)}</Button>}
           </div>

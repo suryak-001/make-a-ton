@@ -125,7 +125,7 @@ export default function CustomerDetail() {
 
         <Card className="content-start self-start p-5">
           <h2 className="mb-4 font-medium">Activity</h2>
-          {timeline.length === 0 ? <p className="text-[13px] text-muted">Nothing has happened yet.</p> : <Timeline items={timeline} />}
+          {timeline.length === 0 ? <p className="text-[13px] text-muted">Nothing has happened yet.</p> : <div className="max-h-[520px] overflow-y-auto pr-2"><Timeline items={timeline} /></div>}
         </Card>
       </div>
 

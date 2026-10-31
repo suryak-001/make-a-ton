@@ -9,7 +9,7 @@ from app.core.errors import NotFound
 from app.core.pagination import Page, Pages, paginate
 from app.enums import InvoiceStatus
 from app.models import Invoice
-from app.routers.invoices import _print_html
+from app.routers.invoices import _print_html, pdf_response
 from app.schemas.gateway import CheckoutOut, VerifyIn
 from app.schemas.money import InvoiceOut
 from app.services import gateway
@@ -90,3 +90,8 @@ def verify_checkout(invoice_id: int, body: VerifyIn, db: Db, user: CustomerUser)
     db.commit()
     db.expire_all()
     return invoice_out(_mine(invoice_id, db, user))
+
+
+@router.get("/{invoice_id}/pdf")
+def pdf_mine(invoice_id: int, db: Db, user: CustomerUser):
+    return pdf_response(db, _mine(invoice_id, db, user))

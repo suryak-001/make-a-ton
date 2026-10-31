@@ -4,7 +4,7 @@ from datetime import date
 from html import escape
 
 from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload
 
@@ -16,6 +16,8 @@ from app.models import Customer, Invoice
 from app.schemas.money import BillingRunIn, BillingRunOut, InvoiceOut
 from app.services import invoices as svc
 from app.services.billing import rebill_invoice, run_billing
+from app.services.company import get_company
+from app.services.invoice_pdf import invoice_filename, render_invoice_pdf
 from app.services.invoice_queries import overdue_conditions, present_conditions
 from app.services.money_views import INVOICE_LOAD, invoice_out, load_invoice
 
@@ -190,3 +192,19 @@ def _print_html(invoice: InvoiceOut) -> str:
 @router.get("/{invoice_id}/print", response_class=HTMLResponse)
 def print_invoice(invoice_id: int, db: Db, _: StaffUser):
     return HTMLResponse(_print_html(invoice_out(load_invoice(db, invoice_id))))
+
+
+def pdf_response(db, invoice) -> Response:
+    """The invoice as a downloadable PDF in the company's name. Shared with the customer portal, which passes only
+    an invoice it has already checked belongs to the signed-in customer."""
+    data = render_invoice_pdf(invoice, get_company(db))
+    return Response(
+        data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{invoice_filename(invoice)}"'},
+    )
+
+
+@router.get("/{invoice_id}/pdf")
+def download_pdf(invoice_id: int, db: Db, _: StaffUser):
+    return pdf_response(db, svc.get_invoice(db, invoice_id))

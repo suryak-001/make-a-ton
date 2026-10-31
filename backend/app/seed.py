@@ -22,6 +22,7 @@ from app.enums import (
     SubscriptionStatus,
 )
 from app.models import (
+    CompanyProfile,
     Customer,
     Discount,
     Invoice,
@@ -38,6 +39,7 @@ from app.models import (
     User,
 )
 from app.services.billing import run_billing
+from app.services.company import MOCK_COMPANY
 from app.services.invoices import confirm_invoice
 from app.services.pricing import TaxRule, compute_line, round2
 from app.services.sequence import next_number
@@ -180,11 +182,27 @@ def main(big: bool = False) -> None:
         db.add_all([gst18, Tax(name="GST 5%", kind=AmountKind.PERCENT, rate=D(5))])
 
         # ── Section B: customers, catalog, plans, templates ──
+        # The company that issues the invoices, and sample billing addresses for the customers' invoices.
+        db.add(CompanyProfile(**MOCK_COMPANY))
         acme = Customer(
-            name="Acme Retail", email="priya@acme.test", phone="+91 98765 43210", user_id=priya.id
+            name="Acme Retail",
+            email="priya@acme.test",
+            phone="+91 98765 43210",
+            address="Plot 21, MG Road, Ernakulam\nKochi, Kerala 682016",
+            user_id=priya.id,
         )
-        northwind = Customer(name="Northwind Traders", email="billing@northwind.test")
-        globex = Customer(name="Globex Corporation", email="ap@globex.test")
+        northwind = Customer(
+            name="Northwind Traders",
+            email="billing@northwind.test",
+            phone="+91 80 4000 1122",
+            address="88 Residency Road\nBengaluru, Karnataka 560025",
+        )
+        globex = Customer(
+            name="Globex Corporation",
+            email="ap@globex.test",
+            phone="+91 124 400 7788",
+            address="12 Cyber Hub, DLF Phase 3\nGurugram, Haryana 122002",
+        )
         db.add_all([acme, northwind, globex])
 
         odoo = ProductVariant(attribute="Brand", value="Odoo", extra_price=D(560))

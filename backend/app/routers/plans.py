@@ -11,6 +11,7 @@ from app.core.errors import Conflict
 from app.core.lookup import get_or_404
 from app.core.pagination import Page, Pages, like_pattern, paginate
 from app.models import Plan, Subscription
+from app.schemas.active import ActiveIn
 from app.schemas.catalog import PlanIn, PlanOut
 from app.services.subscriptions import LIVE
 
@@ -68,6 +69,15 @@ def update_plan(plan_id: int, body: PlanIn, db: Db, _: AdminUser):
         setattr(plan, field, value)
     db.commit()
     return plan
+
+
+@router.patch("/{plan_id}/active", response_model=PlanOut)
+def set_plan_active(plan_id: int, body: ActiveIn, db: Db, _: AdminUser):
+    """The quick switch on a list row: flips Active without re-sending the whole form."""
+    item = get_or_404(db, Plan, plan_id)
+    item.active = body.active
+    db.commit()
+    return item
 
 
 @router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)

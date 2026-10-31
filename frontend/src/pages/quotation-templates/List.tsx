@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router'
 import { buttonClass } from '@/components/button-class'
 import { CustomerPicker } from '@/components/CustomerPicker'
 import { DataTable, Pagination } from '@/components/DataTable'
+import { EntityRowMenu } from '@/components/EntityRow'
 import { Alert, FormField, Input } from '@/components/forms'
 import { Modal } from '@/components/Modal'
 import { Button, PageHeader } from '@/components/ui'
@@ -47,6 +48,7 @@ export default function TemplateList() {
         rows={list.data?.items}
         rowKey={(t) => t.id}
         onRowClick={(t) => navigate(String(t.id))}
+        actions={(t) => <EntityRowMenu path="/quotation-templates" id={t.id} name={t.name} label="this template" />}
         empty="No templates yet."
         columns={[
           { header: 'Name', cell: (t) => <span className="font-medium">{t.name}</span> },

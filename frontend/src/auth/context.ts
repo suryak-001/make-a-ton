@@ -26,4 +26,4 @@ export function useAuth() {
   return ctx
 }
 
-export const homeFor = (role: Role) => (role === 'CUSTOMER' ? '/portal/subscriptions' : '/dashboard')
+export const homeFor = (role: Role) => (role === 'CUSTOMER' ? '/portal/home' : '/dashboard')

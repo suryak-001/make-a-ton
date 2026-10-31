@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.errors import Conflict, NotFound
 from app.enums import InvoiceStatus
 from app.models import Invoice
+from app.services.company import get_company
+from app.services.invoice_pdf import invoice_filename, render_invoice_pdf
 from app.services.mail import send_mail
 from app.services.sequence import next_number
 
@@ -67,10 +69,14 @@ def cancel_invoice(db: Session, invoice_id: int) -> Invoice:
 def send_invoice(db: Session, invoice_id: int) -> Invoice:
     invoice = get_invoice(db, invoice_id)
     _require(invoice, "send")
+    company = get_company(db)
     send_mail(
         invoice.customer.email,
-        f"Invoice {invoice.number}",
-        f"Your invoice {invoice.number} totals {invoice.total}. Open the customer portal to view it.",
+        f"Invoice {invoice.number} from {company.name}",
+        f"Hello {invoice.customer.name},\n\nYour invoice {invoice.number} for INR {invoice.total:,.2f} is attached "
+        f"as a PDF. It is due on {invoice.due_date:%d %b %Y}. You can also view and pay it in the customer portal.\n\n"
+        f"{company.name}",
+        attachments=[(invoice_filename(invoice), render_invoice_pdf(invoice, company), "application/pdf")],
     )
     invoice.sent_at = datetime.now(UTC)
     return invoice

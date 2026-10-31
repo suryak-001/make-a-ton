@@ -104,7 +104,7 @@ export function SubscriptionView({ sub, actions, afterLines, staff = false }: { 
 
       <Card className="p-5">
         <h3 className="mb-3 font-medium">History</h3>
-        <EventHistory events={sub.events} staff={staff} />
+        <div className="max-h-96 overflow-y-auto pr-2"><EventHistory events={sub.events} staff={staff} /></div>
       </Card>
     </div>
   )

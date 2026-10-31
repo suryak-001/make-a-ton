@@ -10,6 +10,7 @@ import ForgotPassword from '@/pages/auth/ForgotPassword'
 import ResetPassword from '@/pages/auth/ResetPassword'
 import Signup from '@/pages/auth/Signup'
 import Login from '@/pages/Login'
+import Profile from '@/pages/profile/Profile'
 
 /**
  * Real pages register themselves: create src/pages/<route>/index.tsx with a default export
@@ -45,7 +46,7 @@ export const router = createBrowserRouter([
         <AppShell nav={APP_NAV} />
       </RequireRole>
     ),
-    children: APP_NAV.map(routeFor),
+    children: [{ path: '/profile', element: <Profile /> }, ...APP_NAV.map(routeFor)],
   },
   {
     element: (
@@ -53,7 +54,7 @@ export const router = createBrowserRouter([
         <AppShell nav={PORTAL_NAV} />
       </RequireRole>
     ),
-    children: [{ path: '/portal', element: <Navigate to="/portal/subscriptions" replace /> }, ...PORTAL_NAV.map(routeFor)],
+    children: [{ path: '/portal', element: <Navigate to="/portal/home" replace /> }, { path: '/portal/profile', element: <Profile /> }, ...PORTAL_NAV.map(routeFor)],
   },
   { path: '*', element: <Forbidden /> },
 ])

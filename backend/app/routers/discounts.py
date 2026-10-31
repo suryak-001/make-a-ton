@@ -10,6 +10,7 @@ from app.core.lookup import get_or_404
 from app.core.pagination import Page, Pages, like_pattern, paginate
 from app.enums import DiscountScope
 from app.models import Discount, DiscountUsage, Product, Subscription
+from app.schemas.active import ActiveIn
 from app.schemas.money import DiscountIn, DiscountOut
 
 router = APIRouter(prefix="/api/discounts", tags=["discounts"])
@@ -110,6 +111,15 @@ def update_discount(discount_id: int, body: DiscountIn, db: Db, _: AdminUser):
     _apply(db, discount, body)
     db.commit()
     return _out(discount)
+
+
+@router.patch("/{discount_id}/active", response_model=DiscountOut)
+def set_discount_active(discount_id: int, body: ActiveIn, db: Db, _: AdminUser):
+    """The quick switch on a list row: flips Active without re-sending the whole form."""
+    item = _load(db, discount_id)
+    item.active = body.active
+    db.commit()
+    return _out(item)
 
 
 @router.delete("/{discount_id}", status_code=status.HTTP_204_NO_CONTENT)

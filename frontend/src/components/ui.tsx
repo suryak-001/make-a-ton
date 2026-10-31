@@ -1,6 +1,7 @@
 // Small shared primitives. Add to this file (or a sibling) rather than restyling in each page.
 import clsx from 'clsx'
 import { buttonClass } from './button-class'
+import { useInModal } from './modal-context'
 import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
 
 export function Button({
@@ -44,6 +45,7 @@ export function Badge({ children, className }: { children: ReactNode; className?
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
+  if (useInModal()) return null // the pop-up has its own title
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-4">
       <div>

@@ -14,6 +14,7 @@ from app.core.lookup import get_or_404
 from app.core.pagination import Page, Pages, like_pattern, paginate
 from app.models import Tax
 from app.models.subscriptions import subscription_line_taxes
+from app.schemas.active import ActiveIn
 from app.schemas.money import TaxIn, TaxOut
 
 router = APIRouter(prefix="/api/taxes", tags=["taxes"])
@@ -60,6 +61,15 @@ def update_tax(tax_id: int, body: TaxIn, db: Db, _: AdminUser):
         setattr(tax, key, value)
     db.commit()
     return tax
+
+
+@router.patch("/{tax_id}/active", response_model=TaxOut)
+def set_tax_active(tax_id: int, body: ActiveIn, db: Db, _: AdminUser):
+    """The quick switch on a list row: flips Active without re-sending the whole form."""
+    item = get_or_404(db, Tax, tax_id)
+    item.active = body.active
+    db.commit()
+    return item
 
 
 @router.delete("/{tax_id}", status_code=status.HTTP_204_NO_CONTENT)

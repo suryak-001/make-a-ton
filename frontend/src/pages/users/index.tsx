@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check, Copy, MessageCircle, Plus } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { DataTable, Pagination } from '@/components/DataTable'
 import { Alert, FormField, Input, Select } from '@/components/forms'
@@ -31,7 +32,7 @@ export default function UsersPage() {
       <PageHeader
         title="Users"
         description="Only an admin can add staff. Customers create their own accounts when they sign up."
-        actions={<Button onClick={() => setAdding(true)}>Add staff member</Button>}
+        actions={<Button onClick={() => setAdding(true)}><Plus className="mr-1.5 size-4" /> Add staff member</Button>}
       />
       <div className="mb-4 flex gap-3">
         <Input
@@ -83,11 +84,13 @@ function AddStaffForm({ onDone }: { onDone: () => void }) {
   const qc = useQueryClient()
   const [error, setError] = useState<ApiError>()
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [invite, setInvite] = useState<{ name: string; email: string; password: string }>()
   const add = useMutation({
     mutationFn: (body: Record<string, string>) => api.post<UserRow>('/users', body),
-    onSuccess: () => {
+    onSuccess: (user) => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      onDone()
+      setInvite({ name: user.name, email: user.email, password })
     },
     onError: (e) => setError(e instanceof ApiError ? e : new ApiError(0, 'Could not add the staff member. Try again.')),
   })
@@ -96,8 +99,11 @@ function AddStaffForm({ onDone }: { onDone: () => void }) {
     e.preventDefault()
     setError(undefined)
     if (!passwordIsValid(password)) return setError(new ApiError(422, 'Password too weak.', { password: 'The password doesn’t meet all the rules below.' }))
+    if (password !== confirm) return setError(new ApiError(422, 'The two passwords don’t match.', { password: 'The two passwords don’t match.' }))
     add.mutate({ ...(Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>), password })
   }
+
+  if (invite) return <InviteCard invite={invite} onDone={onDone} />
 
   const fields = error?.fields ?? {}
   return (
@@ -108,7 +114,7 @@ function AddStaffForm({ onDone }: { onDone: () => void }) {
       <FormField label="Email" htmlFor="email" error={fields.email}>
         <Input id="email" name="email" type="email" required error={!!fields.email} />
       </FormField>
-      <PasswordField id="password" label="Initial password" value={password} onChange={setPassword} error={fields.password} />
+      <PasswordField id="password" label="Initial password" value={password} onChange={setPassword} confirm={confirm} onConfirm={setConfirm} error={fields.password} />
       {error && Object.keys(fields).length === 0 && <Alert>{error.message}</Alert>}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onDone}>
@@ -119,5 +125,42 @@ function AddStaffForm({ onDone }: { onDone: () => void }) {
         </Button>
       </div>
     </form>
+  )
+}
+
+/** Shown right after a staff member is added: a ready message to paste into WhatsApp, email or chat. */
+function InviteCard({ invite, onDone }: { invite: { name: string; email: string; password: string }; onDone: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const message = [
+    `Hi ${invite.name}, welcome to Brightloop! You have been added as a staff member.`,
+    '',
+    `Sign in: ${window.location.origin}/login`,
+    `Email: ${invite.email}`,
+    `Password: ${invite.password}`,
+    '',
+    'Please change your password after you sign in.',
+  ].join('\n')
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(message)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div className="grid gap-4">
+      <p className="flex items-center gap-2 text-[13px] font-medium text-green"><Check className="size-4" /> {invite.name} was added as staff.</p>
+      <p className="text-[13px] text-muted">Send them this message. The password is only shown now, so copy it before you close this window.</p>
+      <pre className="whitespace-pre-wrap rounded-md border border-line bg-surface p-3 text-[12px] leading-5">{message}</pre>
+      <div className="flex flex-wrap justify-end gap-2">
+        <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line px-3 text-[13px] font-medium hover:bg-surface"><MessageCircle className="size-4" /> WhatsApp</a>
+        <Button type="button" variant="outline" onClick={copy}>{copied ? <><Check className="mr-1.5 size-4" /> Copied</> : <><Copy className="mr-1.5 size-4" /> Copy invite</>}</Button>
+        <Button type="button" onClick={onDone}>Done</Button>
+      </div>
+    </div>
   )
 }

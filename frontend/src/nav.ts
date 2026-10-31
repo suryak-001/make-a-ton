@@ -30,6 +30,7 @@ export const APP_NAV: NavItem[] = [
 ]
 
 export const PORTAL_NAV: NavItem[] = [
+  { href: '/portal/home', label: 'Home', roles: ['CUSTOMER'], owner: 'B', step: 'B8', todo: ['Account at a glance'] },
   { href: '/portal/subscriptions', label: 'My subscriptions', roles: ['CUSTOMER'], owner: 'B', step: 'B8', todo: ["List + read-only detail of the customer's own subscriptions"] },
   { href: '/portal/invoices', label: 'My invoices', roles: ['CUSTOMER'], owner: 'A', step: 'A8', todo: ["List of the customer's own invoices, print/download"] },
 ]

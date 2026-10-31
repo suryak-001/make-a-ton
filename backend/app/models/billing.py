@@ -134,3 +134,17 @@ class GatewayOrder(Base):
     paid_at: Mapped[Timestamp | None]
 
     invoice: Mapped[Invoice] = relationship()
+
+
+class InvoiceReminder(Base):
+    """A payment reminder that went out for an invoice. One row per invoice per aging stage, so chasing the
+    same overdue invoice twice in one stage can't happen, whoever clicks and however fast."""
+
+    __tablename__ = "invoice_reminder"
+    __table_args__ = (UniqueConstraint("invoice_id", "stage"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoice.id", ondelete="CASCADE"), index=True)
+    stage: Mapped[str] = mapped_column(String(16))  # an aging bucket key, e.g. "1-30"
+    sent_by_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"))
+    sent_at: Mapped[Timestamp] = mapped_column(default=utcnow)

@@ -66,6 +66,17 @@ dialog::backdrop {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.row-flash { animation: row-flash 1800ms ease-out both; }
+@keyframes row-flash {
+  from { background-color: rgb(242 194 48 / 0.45); }
+  to { background-color: transparent; }
+}
+
 @keyframes sheet-in {
   from { transform: translateX(24px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }

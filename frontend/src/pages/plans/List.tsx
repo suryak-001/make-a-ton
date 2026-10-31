@@ -1,8 +1,11 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { useAuth } from '@/auth/context'
 import { DataTable, Pagination } from '@/components/DataTable'
+import { EntityRowMenu, EntityStatus } from '@/components/EntityRow'
+import { useFlashId } from '@/lib/flash'
 import { Input, Select } from '@/components/forms'
 import { buttonClass } from '@/components/button-class'
 import { Badge, PageHeader } from '@/components/ui'
@@ -17,6 +20,7 @@ export default function PlanList() {
   const [q, setQ] = useState('')
   const [active, setActive] = useState('')
   const [page, setPage] = useState(1)
+  const flash = useFlashId()
   const debounced = useDebounced(q)
 
   const list = useQuery({
@@ -31,7 +35,7 @@ export default function PlanList() {
       <PageHeader
         title="Plans"
         description={isAdmin ? 'How often a subscription bills, when it is on sale, and what customers or staff can do with it.' : 'Billing plans. Only an admin can change them.'}
-        actions={isAdmin && <Link to="new" className={buttonClass()}>New plan</Link>}
+        actions={isAdmin && <Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New plan</Link>}
       />
       <div className="mb-4 flex gap-3">
         <Input
@@ -64,6 +68,8 @@ export default function PlanList() {
         rowKey={(p) => p.id}
         onRowClick={(p) => navigate(String(p.id))}
         empty="No plans found."
+        flashId={flash}
+        actions={isAdmin ? (p) => <EntityRowMenu path="/plans" id={p.id} name={p.name} active={p.active} label="this plan" /> : undefined}
         columns={[
           { header: 'Name', cell: (p) => <span className="font-medium">{p.name}</span> },
           { header: 'Billing', cell: (p) => PERIOD_LABEL[p.billing_period] },
@@ -81,7 +87,7 @@ export default function PlanList() {
               </span>
             ),
           },
-          { header: 'Status', cell: (p) => (p.active ? <Badge className="bg-green-50 text-green-800">Active</Badge> : <Badge className="bg-zinc-100 text-zinc-600">Inactive</Badge>) },
+          { header: 'Status', cell: (p) => <EntityStatus path="/plans" id={p.id} active={p.active} disabled={!isAdmin} /> },
         ]}
       />
       {list.data && <Pagination page={page} pageSize={list.data.page_size} total={list.data.total} onPage={setPage} />}

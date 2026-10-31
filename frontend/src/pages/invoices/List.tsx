@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { buttonClass } from '@/components/button-class'
 import { DataTable, Pagination } from '@/components/DataTable'
 import { ExportLink } from '@/components/ExportLink'
@@ -14,7 +14,8 @@ import type { Invoice } from '@/lib/types'
 
 export default function InvoiceList() {
   const navigate = useNavigate()
-  const [filters, setFilters] = useState<InvoiceFilterValues>(NO_INVOICE_FILTERS)
+  const [params] = useSearchParams() // the dashboard links here with ?overdue=1
+  const [filters, setFilters] = useState<InvoiceFilterValues>({ ...NO_INVOICE_FILTERS, overdue: params.get('overdue') === '1', status: params.get('status') ?? '' })
   const [page, setPage] = useState(1)
 
   const change = (patch: Partial<InvoiceFilterValues>) => {

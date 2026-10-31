@@ -23,7 +23,7 @@ export default function SubscriptionList() {
   const qc = useQueryClient()
   const plans = usePlans()
   const [q, setQ] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(() => new URLSearchParams(window.location.search).get('status') ?? '')
   const [planId, setPlanId] = useState('')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<number>()

@@ -94,6 +94,8 @@ Still to do together at kick-off: review the schema once and agree the API contr
 - **Beyond the brief:** add-ons switched on and off on a live subscription (staff and portal, billed from the next invoice), a customer page (their dashboard numbers, subscriptions, invoices, payments and one activity timeline), CSV export on every list (same filters as the screen), and bank reconciliation (upload a statement CSV, each credit is matched to an open invoice with the reason shown, approved lines are recorded once and never twice; try it with **Sample statement**).
 - 127 backend tests pass, and the frontend builds and lints clean. The money-side screens (taxes, discounts, billing run, invoices, payments, reports) have been clicked through in a browser against the 5,000-subscription seed. The sell side has not been clicked through end to end yet.
 
+- **First screen per role:** the admin sees the finance numbers plus a receivables aging chart, a proof panel (row counts, 0 periods billed twice, how long the checks took) and a next-step banner that follows real data. Staff see a work queue (invoices to confirm and chase, renewals and quotes running out) and can send one reminder per overdue invoice per aging stage. A customer sees their account at a glance: what they owe, what is overdue, their plans with the pause, renew and close actions the plan allows, and recent invoices.
+
 Decisions the build follows (details in `docs/PRD.md`): quote validity starts when the quote is sent, minimum quantity is checked per line, every state change writes a history event, portal pause, close and renew is core, and the invoice number is assigned at Confirm.
 
 **Closed since the money-side review:**
