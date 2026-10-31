@@ -150,7 +150,7 @@ export type PricePreview = { unit_price: string; subtotal: string; discount_amou
 
 export type InvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'PAID' | 'CANCELLED'
 /** What the server allows right now; the buttons are drawn from this list. */
-export type InvoiceAction = 'confirm' | 'cancel' | 'pay' | 'send' | 'print'
+export type InvoiceAction = 'confirm' | 'cancel' | 'pay' | 'send' | 'print' | 'rebill'
 export type InvoiceLine = {
   id: number
   product_id: number | null

@@ -43,7 +43,7 @@ export function FinanceOverview({ filters = {} }: { filters?: ReportFilters }) {
   const overdue = useQuery({ queryKey: ['/reports', 'overdue', filters], queryFn: () => api.get<Invoice[]>(`/reports/overdue${qs({ plan_id: filters.plan_id, customer_id: filters.customer_id })}`) })
   const primary: [string, string, string, MetricKey][] = summary.data ? [
     ['Active subscriptions', String(summary.data.active_subscriptions), 'Live agreements', 'active'],
-    ['Monthly revenue', money(summary.data.mrr), 'Before tax and discounts', 'mrr'],
+    ['Monthly revenue', money(summary.data.mrr), 'Net of discounts, before tax', 'mrr'],
     ['Invoiced', money(summary.data.invoiced), 'Confirmed + paid', 'invoiced'],
     ['Collected', money(summary.data.collected), 'Cash received', 'collected'],
   ] : []

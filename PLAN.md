@@ -3,7 +3,7 @@
 Source: `Subscription_Management_System.pdf` (Brightloop Software scenario).
 Requirements and decisions: **[docs/PRD.md](docs/PRD.md)**. API contract between the two halves: **[docs/API_CONTRACT.md](docs/API_CONTRACT.md)**.
 
-**Person A = Sell side** (auth, catalogue, subscriptions, portal subscriptions). **Person B = Money side** (taxes, discounts, billing, invoices, payments, reports, portal invoices). Each person builds their features end to end, backend and frontend. Steps are numbered **S1 to S9** (sell side) and **M1 to M9** (money side).
+**Sell side** (auth, catalogue, subscriptions, portal subscriptions) and **Money side** (taxes, discounts, billing, invoices, payments, reports, portal invoices). Each side is built by one person, who builds their features end to end, backend and frontend. Steps are numbered **S1 to S9** (sell side) and **M1 to M9** (money side).
 
 ---
 
@@ -49,7 +49,7 @@ The browser only talks to the Vite dev server, which proxies `/api` to FastAPI, 
 
 Each person owns complete features from the database through the API to the screen, and tests them. Nobody waits for the other half of their own feature.
 
-| | **Person A: Sell side** | **Person B: Money side** |
+| | **Sell side** | **Money side** |
 |---|---|---|
 | Scenes | R1 sign up, R2 roles, R3 products, R4 plans, R5 templates, R6 subscriptions | R7 billing day, R8 taxes, R9 discounts, R10 payments, R11 reports |
 | Hard part | Subscription state machine, quote builder, role-guarded screens | Billing engine, discount limits under concurrency, report performance |
@@ -64,7 +64,7 @@ backend/tests/test_<feature>.py                                           the fe
 Money side (B): taxes, discounts, invoices, payments, reports, pricing, portal_invoices, services/billing.py, services/discounts.py
 Sell side (A): users, customers, products, plans, quotation_templates, subscriptions, portal_subscriptions, services/subscriptions.py, core/* and routers/auth.py
 ```
-**Shared, change only after telling the other person:** `backend/app/models/*` (one Alembic migration per PR), `backend/app/seed.py` (Person B edits the money sections, Person A edits the sell sections), `frontend/src/nav.ts`, `frontend/src/components/ui.tsx` (add new primitives, do not restyle existing ones), `frontend/src/lib/api.ts`.
+**Shared, change only after telling the other person:** `backend/app/models/*` (one Alembic migration per PR), `backend/app/seed.py` (the money side edits the money sections, the sell side edits the sell sections), `frontend/src/nav.ts`, `frontend/src/components/ui.tsx` (add new primitives, do not restyle existing ones), `frontend/src/lib/api.ts`.
 
 **Rules**
 1. The API contract in **docs/API_CONTRACT.md** is frozen at kick-off. Each owner publishes their own endpoints, and the other consumes them. A change needs both people to agree in chat.
@@ -74,7 +74,7 @@ Sell side (A): users, customers, products, plans, quotation_templates, subscript
 5. **Cross-explain.** After each checkpoint, each person spends about 5 minutes walking the other through their code, especially billing and the state machine. Anyone may be asked about any file at the desk.
 6. **Cross-test.** In the harden phase each person tries to break the other's features.
 
-**The one dependency between you:** billing needs Active subscriptions. A builds and tests billing against seeded Active subscriptions, so A never waits. B's state machine must set `next_invoice_date` when a subscription becomes Active (the handoff contract in `docs/API_CONTRACT.md` and the stubs in `backend/app/services/`).
+**The one dependency between you:** billing needs Active subscriptions. The money side builds and tests billing against seeded Active subscriptions, so it never waits. The sell side's state machine must set `next_invoice_date` when a subscription becomes Active (the handoff contract in `docs/API_CONTRACT.md` and the stubs in `backend/app/services/`).
 
 ---
 
@@ -89,8 +89,8 @@ Still to do together at kick-off: review the schema once and agree the API contr
 ## 4b. Status
 
 **Both sides are built and merged to `main`.**
-- **Sell side (Person A):** auth with signup and password reset, staff, customers, products and variants, plans, quotation templates, subscriptions with the state machine and history, the lifecycle job, and portal subscriptions.
-- **Money side (Person B):** taxes, discounts, invoice generation, the billing run, invoices (confirm, cancel, send, print), payments, reports and the dashboard, and portal invoices.
+- **Sell side:** auth with signup and password reset, staff, customers, products and variants, plans, quotation templates, subscriptions with the state machine and history, the lifecycle job, and portal subscriptions.
+- **Money side:** taxes, discounts, invoice generation, the billing run, invoices (confirm, cancel, send, print), payments, reports and the dashboard, and portal invoices.
 - 127 backend tests pass, and the frontend builds and lints clean. The money-side screens (taxes, discounts, billing run, invoices, payments, reports) have been clicked through in a browser against the 5,000-subscription seed. The sell side has not been clicked through end to end yet.
 
 Decisions the build follows (details in `docs/PRD.md`): quote validity starts when the quote is sent, minimum quantity is checked per line, every state change writes a history event, portal pause, close and renew is core, and the invoice number is assigned at Confirm.
@@ -109,7 +109,7 @@ Decisions the build follows (details in `docs/PRD.md`): quote validity starts wh
 
 ---
 
-## 5. Person B: Money side
+## 5. Money side
 
 Every step ships the API, the screen and tests.
 
@@ -127,7 +127,7 @@ Every step ships the API, the screen and tests.
 
 ---
 
-## 6. Person A: Sell side
+## 6. Sell side
 
 Every step ships the API, the screen and tests. Pages live in `frontend/src/pages/<route>/index.tsx`.
 
@@ -149,14 +149,14 @@ Every step ships the API, the screen and tests. Pages live in `frontend/src/page
 
 Hours from the start. Phase 0 is already done. If the 24-hour final applies, scale each block up by about 3.
 
-| Hours | Money side (Person B) | Sell side (Person A) | Checkpoint |
+| Hours | Money side | Sell side | Checkpoint |
 |-------|----------------------|---------------------|------------|
 | 0 to 0.5 | Together: review the schema, agree the API contract | | **Contract frozen** |
 | 0.5 to 2 | M1 taxes, M2 discounts, start the seed | S1 auth and roles, S2 staff and customers | Both features click through in the UI. **Seed ready by 2** |
 | 2 to 3.5 | M3 invoice generation (with concurrency tests) | S3 products, S4 plans, S5 templates | Create a product with the Odoo variant, a plan and a template in the UI |
 | 3.5 to 5 | M4 billing run and page, M5 invoices | S6 subscriptions and the state machine | **First end-to-end run at about 5:** template, subscription Active, billing run, invoice |
 | 5 to 6.5 | M6 payments, M7 dashboard, M8 portal invoices | S7 lifecycle, S8 portal subscriptions, validation polish | Payments, dashboard and both portal pages work. **Feature freeze at 6.5** |
-| 6.5 to 7.25 | M9 performance and the big seed. Cross-test B's features | S9 polish. Cross-test A's features | Everything under 2 seconds |
+| 6.5 to 7.25 | M9 performance and the big seed. Cross-test the sell side's features | S9 polish. Cross-test the money side's features | Everything under 2 seconds |
 | 7.25 to 8 | Together: README, clean-clone test, demo rehearsal, submit **before the deadline** | | The demo script in section 10 runs cleanly |
 
 **Rebalancing:** whoever finishes first takes the next unfinished step from the other side. Trim polish before features.
@@ -169,7 +169,7 @@ Hours from the start. Phase 0 is already done. If the 24-hour final applies, sca
 
 | Risk | Mitigation |
 |------|-----------|
-| Money side blocked waiting for subscriptions | A builds and tests billing against seeded Active subscriptions. B's state machine only has to set `next_invoice_date` |
+| Money side blocked waiting for subscriptions | The money side builds and tests billing against seeded Active subscriptions. The sell side's state machine only has to set `next_invoice_date` |
 | Double billing under concurrency | DB `UNIQUE(subscription_id, period_start)`, one transaction, row locks. On `IntegrityError` return the existing invoice |
 | Invoice numbers clash or gap | The `Sequence` table is updated inside the invoice transaction, so a rollback leaves no gap |
 | Slow dashboard with thousands of rows | SQL aggregates, indexes, server-side pagination |

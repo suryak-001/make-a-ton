@@ -1,6 +1,6 @@
 # Brightloop: Subscription Management System
 
-Plans, subscriptions, recurring billing, payments and reporting in one app. See **[PLAN.md](PLAN.md)** for the build plan and split (Person A backend, Person B frontend), **[docs/PRD.md](docs/PRD.md)** for the requirements, and **[docs/API_CONTRACT.md](docs/API_CONTRACT.md)** for the API contract.
+Plans, subscriptions, recurring billing, payments and reporting in one app. See **[PLAN.md](PLAN.md)** for the build plan and split (sell side and money side), **[docs/PRD.md](docs/PRD.md)** for the requirements, and **[docs/API_CONTRACT.md](docs/API_CONTRACT.md)** for the API contract.
 
 **Stack:** FastAPI + SQLAlchemy 2 + Alembic + PostgreSQL (Python 3.13) · React 19 + TypeScript + Vite + Tailwind 4 + React Router + TanStack Query
 
@@ -32,6 +32,8 @@ npm run dev                               # http://localhost:5173
 ```
 
 Open http://localhost:5173.
+
+**Daily jobs.** The server bills everything due and then runs the lifecycle job (auto-close, quote expiry) every day at 02:00 server time. For a demo, use **Billing Run** and the lifecycle button in the app instead, so the numbers appear on screen. To also catch up shortly after start-up set `SCHEDULER_RUN_ON_START=true`; to turn the scheduler off set `SCHEDULER_ENABLED=false`.
 
 ### Demo logins (from `backend/app/seed.py`)
 

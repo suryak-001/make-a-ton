@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useAuth } from '@/auth/context'
 import { api, ApiError } from '@/lib/api'
 import { ACTION_DONE, ACTION_LABEL } from '@/lib/invoices'
 import type { Invoice, InvoiceAction } from '@/lib/types'
@@ -12,6 +13,7 @@ import { Button } from './ui'
 export function InvoiceActions({ invoice }: { invoice: Invoice }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const { user } = useAuth()
   const [askingToCancel, setAskingToCancel] = useState(false)
 
   const act = useMutation({
@@ -25,7 +27,10 @@ export function InvoiceActions({ invoice }: { invoice: Invoice }) {
     onError: (e) => toast(e instanceof ApiError ? e.message : 'That did not work. Try again.'),
   })
 
-  const buttons = invoice.allowed_actions.filter((action) => action !== 'pay')
+  // Re-billing is admin only on the server; staff don't see the button.
+  const buttons = invoice.allowed_actions.filter(
+    (action) => action !== 'pay' && (action !== 'rebill' || user?.role === 'ADMIN'),
+  )
   return (
     <>
       <div className="flex flex-wrap gap-2">

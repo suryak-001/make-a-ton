@@ -19,12 +19,14 @@ export const ACTION_LABEL: Record<InvoiceAction, string> = {
   pay: 'Record payment',
   send: 'Send to customer',
   print: 'Print / PDF',
+  rebill: 'Re-bill period',
 }
 
 export const ACTION_DONE: Partial<Record<InvoiceAction, string>> = {
   confirm: 'Invoice confirmed and numbered.',
   cancel: 'Invoice cancelled.',
   send: 'Invoice emailed to the customer.',
+  rebill: 'A new draft invoice was created for this period.',
 }
 
 export const PAYMENT_METHODS: Record<Payment['method'], string> = {
