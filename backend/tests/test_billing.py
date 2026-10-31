@@ -1,13 +1,13 @@
 """The billing run, invoice generation and the discount rules applied to invoices."""
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from app.enums import AmountKind, BillingPeriod, DiscountScope, SubscriptionStatus
+from app.enums import AmountKind, BillingPeriod, DiscountScope, InvoiceStatus, SubscriptionStatus
 from app.models import (
     Base,
     Customer,
@@ -20,6 +20,8 @@ from app.models import (
     SubscriptionLine,
 )
 from app.services.billing import generate_invoice_for_period, run_billing
+from app.services.invoices import cancel_invoice
+from app.services.scheduler import run_daily_jobs_in, seconds_until
 from tests.conftest import engine
 
 TODAY = date.today()
@@ -120,6 +122,87 @@ def test_a_paused_subscription_is_not_billed(db, catalog):
     sub.status = SubscriptionStatus.PAUSED
     db.commit()
     assert run_billing(db, date(2026, 3, 31)).due == 0
+
+
+def test_billing_stops_at_the_expiry_date(db, catalog):
+    sub = make_sub(db, catalog)
+    sub.expiry_date = date(2026, 3, 15)
+    db.commit()
+    first = run_billing(db, date(2026, 5, 31))
+    assert (first.due, first.created) == (2, 2)  # 31 Jan and 28 Feb; 31 Mar starts after expiry
+    assert run_billing(db, date(2026, 6, 30)).due == 0
+
+
+def test_a_subscription_that_cannot_advance_does_not_stall_the_run(db, catalog):
+    stuck = make_sub(db, catalog, number="SUB-STUCK")
+    stuck.next_invoice_date = date(2026, 2, 15)  # off its billing grid: no period starts by as_of
+    good = make_sub(db, catalog, number="SUB-GOOD")
+    db.commit()
+    result = run_billing(db, date(2026, 2, 20), batch_size=1)
+    assert (result.due, result.created) == (1, 1)
+    assert good.next_invoice_date == date(2026, 2, 28)
+
+
+def test_the_plan_billing_period_is_locked_while_subscriptions_use_it(client, login, db, catalog):
+    make_sub(db, catalog)
+    login("admin@t.test")
+    plan = client.get(f"/api/plans/{catalog.monthly.id}").json()
+    body = {k: plan[k] for k in ("name", "price", "min_quantity", "pausable", "closable", "renewable")}
+    assert (
+        client.put(f"/api/plans/{plan['id']}", json={**body, "billing_period": "YEARLY"}).status_code == 409
+    )
+    renamed = client.put(
+        f"/api/plans/{plan['id']}", json={**body, "billing_period": "MONTHLY", "name": "Monthly+"}
+    )
+    assert renamed.status_code == 200
+
+
+def test_the_daily_jobs_bill_the_final_period_then_auto_close(db, catalog):
+    catalog.monthly.auto_close = True
+    sub = make_sub(db, catalog)
+    sub.expiry_date = date(2026, 3, 15)
+    db.commit()
+    summary = run_daily_jobs_in(db, date(2026, 3, 20))
+    assert summary["billing"]["created"] == 2
+    assert summary["lifecycle"]["closed"] == 1
+    db.refresh(sub)
+    assert sub.status == SubscriptionStatus.CLOSED and sub.next_invoice_date is None
+
+
+def test_the_scheduler_waits_until_the_next_run_time():
+    assert seconds_until(datetime(2026, 10, 31, 1, 0), 2, 0) == 3600
+    assert seconds_until(datetime(2026, 10, 31, 2, 0), 2, 0) == 24 * 3600
+
+
+def test_only_an_admin_can_rebill_a_cancelled_period_and_only_once(client, login, db, catalog):
+    sub = make_sub(db, catalog, start=TODAY)
+    discount = make_discount(db, DiscountScope.SUBSCRIPTION, subscription=sub, usage_limit=1)
+    assert run_billing(db, TODAY).created == 1
+    old = db.scalar(select(Invoice).where(Invoice.subscription_id == sub.id))
+    login("admin@t.test")
+    assert client.post(f"/api/invoices/{old.id}/rebill").status_code == 409  # not cancelled yet
+    cancel_invoice(db, old.id)
+    db.commit()
+    assert run_billing(db, TODAY).due == 0  # the run never re-bills a cancelled period by itself
+
+    login("staff@t.test")
+    assert client.post(f"/api/invoices/{old.id}/rebill").status_code == 403
+    login("admin@t.test")
+    rebilled = client.post(f"/api/invoices/{old.id}/rebill")
+    assert rebilled.status_code == 201
+    body = rebilled.json()
+    assert body["status"] == InvoiceStatus.DRAFT and body["period_start"] == str(TODAY)
+    assert Decimal(body["discount_total"]) > 0  # the cancelled invoice's discount use moved over
+    db.refresh(discount)
+    assert discount.used_count == 1
+    assert client.post(f"/api/invoices/{old.id}/rebill").status_code == 409  # already billed again
+
+
+def test_mrr_is_net_of_the_discounts_that_apply(client, login, db, catalog):
+    sub = make_sub(db, catalog, start=TODAY)  # 2 x 1560 = 3120.00 a month
+    make_discount(db, DiscountScope.SUBSCRIPTION, subscription=sub)  # 10% off
+    login("staff@t.test")
+    assert Decimal(client.get("/api/reports/summary").json()["mrr"]) == Decimal("2808.00")
 
 
 # ───────────────────────────── discounts on the invoice ─────────────────────────────

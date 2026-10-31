@@ -24,6 +24,7 @@ from app.routers import (
     users,
 )
 
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """Starts the daily billing and lifecycle jobs with the server (SCHEDULER_ENABLED=false turns them off)."""

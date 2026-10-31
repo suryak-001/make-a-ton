@@ -14,9 +14,6 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.errors import Conflict, Invalid, NotFound
 from app.enums import AmountKind, DiscountScope, InvoiceStatus, SubscriptionStatus
 from app.models import Discount, DiscountUsage, Invoice, InvoiceLine, Subscription, SubscriptionLine
-
-# How many subscriptions one billing transaction handles before it commits and takes the next batch.
-BILLING_BATCH_SIZE = 200
 from app.services.dates import add_period
 from app.services.discounts import find_applicable_discounts
 from app.services.pricing import (
@@ -29,6 +26,9 @@ from app.services.pricing import (
     discount_for,
     round2,
 )
+
+# How many subscriptions one billing transaction handles before it commits and takes the next batch.
+BILLING_BATCH_SIZE = 200
 
 # ───────────────────────────── one invoice ─────────────────────────────
 
@@ -270,40 +270,41 @@ def run_billing(db: Session, as_of: date, *, batch_size: int = BILLING_BATCH_SIZ
     repeatedly.
 
     Subscriptions are taken in batches, each committed on its own, so a big run never holds one huge
-    transaction or all its row locks at once. A subscription that fails stays due for the next run and is
-    left out of the rest of this one, so a bad row can't make the loop spin."""
+    transaction or all its row locks at once. Batches walk forward by id, so each subscription is visited
+    once per run: one that fails (or can't advance) stays due for the next run and can't make the loop spin."""
     result = BillingRunResult(as_of=as_of)
-    failed_ids: set[int] = set()
-    while batch := _due_subscriptions(db, as_of, limit=batch_size, exclude=failed_ids):
+    last_id = 0
+    while batch := _due_subscriptions(db, as_of, limit=batch_size, after_id=last_id):
         for sub in batch:
-            failures_before = result.failed
             _bill_subscription(db, sub, as_of, result)
-            if result.failed > failures_before:
-                failed_ids.add(sub.id)
+        last_id = batch[-1].id
         db.commit()
     return result
 
 
-def _due_subscriptions(db: Session, as_of: date, *, limit: int, exclude: set[int]) -> list[Subscription]:
-    """The next batch of due subscriptions. Locked with skip_locked so two simultaneous runs never take
-    the same row. A subscription whose next period starts after its expiry date is no longer billed
-    (renewing it moves the expiry date, and billing picks it up again)."""
-    stmt = (
-        select(Subscription)
-        .where(
-            Subscription.status == SubscriptionStatus.ACTIVE,
-            Subscription.next_invoice_date.is_not(None),
-            Subscription.next_invoice_date <= as_of,
-            or_(Subscription.expiry_date.is_(None), Subscription.next_invoice_date <= Subscription.expiry_date),
+def _due_subscriptions(db: Session, as_of: date, *, limit: int, after_id: int) -> list[Subscription]:
+    """The next batch of due subscriptions after `after_id`. Locked with skip_locked so two simultaneous
+    runs never take the same row. A subscription whose next period starts after its expiry date is no
+    longer billed (renewing it moves the expiry date, and billing picks it up again)."""
+    return list(
+        db.scalars(
+            select(Subscription)
+            .where(
+                Subscription.id > after_id,
+                Subscription.status == SubscriptionStatus.ACTIVE,
+                Subscription.next_invoice_date.is_not(None),
+                Subscription.next_invoice_date <= as_of,
+                or_(
+                    Subscription.expiry_date.is_(None),
+                    Subscription.next_invoice_date <= Subscription.expiry_date,
+                ),
+            )
+            .options(selectinload(Subscription.plan))
+            .order_by(Subscription.id)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
         )
-        .options(selectinload(Subscription.plan))
-        .order_by(Subscription.id)
-        .limit(limit)
-        .with_for_update(skip_locked=True)
     )
-    if exclude:
-        stmt = stmt.where(Subscription.id.not_in(exclude))
-    return list(db.scalars(stmt))
 
 
 def _bill_subscription(db: Session, sub: Subscription, as_of: date, result: BillingRunResult) -> None:
@@ -337,7 +338,9 @@ def _due_periods(sub: Subscription, as_of: date) -> list[tuple[int, date]]:
     period = sub.plan.billing_period
     first = next(i for i in count() if add_period(sub.start_date, period, i) >= sub.next_invoice_date)
     starts = ((i, add_period(sub.start_date, period, i)) for i in count(first))
-    last_day = min(as_of, sub.expiry_date) if sub.expiry_date is not None else as_of  # nothing starts after expiry
+    last_day = (
+        min(as_of, sub.expiry_date) if sub.expiry_date is not None else as_of
+    )  # nothing starts after expiry
     return list(takewhile(lambda item: item[1] <= last_day, starts))
 
 
@@ -359,7 +362,9 @@ def rebill_invoice(db: Session, invoice_id: int) -> Invoice:
     with db.begin_nested():  # release the old uses and bill again as one step, or neither
         for usage in db.scalars(select(DiscountUsage).where(DiscountUsage.invoice_id == old.id)):
             db.execute(
-                update(Discount).where(Discount.id == usage.discount_id).values(used_count=Discount.used_count - 1)
+                update(Discount)
+                .where(Discount.id == usage.discount_id)
+                .values(used_count=Discount.used_count - 1)
             )
             db.delete(usage)
         db.flush()

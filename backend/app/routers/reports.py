@@ -144,7 +144,11 @@ def _discounts_worth_per_month(db: Db, conditions: list) -> Decimal:
     ids = {s.id for d in discounts if d.scope == DiscountScope.SUBSCRIPTION for s in d.subscriptions}
     product_ids = {p.id for d in discounts if d.scope == DiscountScope.PRODUCT for p in d.products}
     if product_ids:
-        ids |= set(db.scalars(select(SubscriptionLine.subscription_id).where(SubscriptionLine.product_id.in_(product_ids))))
+        ids |= set(
+            db.scalars(
+                select(SubscriptionLine.subscription_id).where(SubscriptionLine.product_id.in_(product_ids))
+            )
+        )
     if not ids:
         return ZERO
     subscriptions = list(

@@ -10,8 +10,9 @@ from app.core.deps import AdminUser, Db, StaffUser
 from app.core.errors import Conflict
 from app.core.lookup import get_or_404
 from app.core.pagination import Page, Pages, like_pattern, paginate
-from app.models import Plan
+from app.models import Plan, Subscription
 from app.schemas.catalog import PlanIn, PlanOut
+from app.services.subscriptions import LIVE
 
 router = APIRouter(prefix="/api/plans", tags=["plans"])
 
@@ -58,6 +59,11 @@ def get_plan(plan_id: int, db: Db, _: StaffUser):
 @router.put("/{plan_id}", response_model=PlanOut)
 def update_plan(plan_id: int, body: PlanIn, db: Db, _: AdminUser):
     plan = get_or_404(db, Plan, plan_id)
+    if body.billing_period != plan.billing_period and db.scalar(
+        select(Subscription.id).where(Subscription.plan_id == plan.id, Subscription.status.in_(LIVE)).limit(1)
+    ):
+        # Billing dates follow the plan's period from each start date; changing it mid-way would break them.
+        raise Conflict("Active or paused subscriptions use this plan, so its billing period can't change.")
     for field, value in body.model_dump().items():
         setattr(plan, field, value)
     db.commit()
