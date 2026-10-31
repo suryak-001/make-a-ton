@@ -1,10 +1,12 @@
+import { Link } from 'react-router'
 import { DataTable } from './DataTable'
 import { StatusBadge } from './StatusBadge'
 import { Card } from './ui'
 import { formatDate, money } from '@/lib/format'
 import type { Invoice } from '@/lib/types'
 
-export function InvoiceView({ invoice }: { invoice: Invoice }) {
+/** `staff` links the customer to their page; the portal shows plain text. */
+export function InvoiceView({ invoice, staff = false }: { invoice: Invoice; staff?: boolean }) {
   return (
     <div className="grid max-w-5xl gap-4">
       <Card className="overflow-hidden">
@@ -12,7 +14,7 @@ export function InvoiceView({ invoice }: { invoice: Invoice }) {
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">Invoice</p>
             <h2 className="mt-1 text-xl font-semibold">{invoice.number ?? `Draft #${invoice.id}`}</h2>
-            <p className="mt-1 text-sm text-muted">{invoice.customer.name} · {invoice.customer.email}</p>
+            <p className="mt-1 text-sm text-muted">{staff ? <Link to={`/customers/${invoice.customer.id}`} className="text-brand hover:underline">{invoice.customer.name}</Link> : invoice.customer.name} · {invoice.customer.email}</p>
           </div>
           <div className="text-right">
             <StatusBadge status={invoice.status} />

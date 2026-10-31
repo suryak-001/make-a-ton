@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import {
-  BadgePercent, CalendarRange, ChartNoAxesCombined, ChevronRight, FileStack, House,
+  BadgePercent, CalendarRange, ChartNoAxesCombined, ChevronRight, FileStack, House, Landmark,
   LayoutDashboard, LogOut, Menu, Package, Percent, ReceiptText, Repeat2, UserCog,
   Users, WalletCards, X, type LucideIcon,
 } from 'lucide-react'
@@ -17,7 +17,7 @@ const groupFor = (href: string) => {
   if (href.includes('/dashboard') || href.includes('/reports')) return 'Overview'
   if (href.includes('/subscriptions') || href.includes('/customers') || href.includes('/quotation')) return 'Sales'
   if (href.includes('/products') || href.includes('/plans')) return 'Catalog'
-  if (href.includes('/invoices') || href.includes('/payments')) return 'Billing'
+  if (href.includes('/invoices') || href.includes('/payments') || href.includes('/reconciliation')) return 'Billing'
   return 'Configuration'
 }
 
@@ -27,6 +27,7 @@ const iconFor = (href: string): LucideIcon => {
   if (href.includes('/customers')) return Users
   if (href.includes('/invoices')) return ReceiptText
   if (href.includes('/payments')) return WalletCards
+  if (href.includes('/reconciliation')) return Landmark
   if (href.includes('/quotation')) return FileStack
   if (href.includes('/products')) return Package
   if (href.includes('/plans')) return CalendarRange

@@ -1,4 +1,6 @@
 from datetime import datetime
+from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
@@ -37,3 +39,12 @@ class CustomerOut(BaseModel):
     address: str | None
     has_login: bool  # true when the customer can sign in to the portal
     created_at: datetime
+
+
+class TimelineItem(BaseModel):
+    at: datetime
+    kind: Literal["subscription", "invoice", "payment"]
+    title: str
+    detail: str | None = None
+    amount: Decimal | None = None
+    link: str  # app route to open, e.g. /invoices/12

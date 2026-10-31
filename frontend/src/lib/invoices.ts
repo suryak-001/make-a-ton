@@ -1,4 +1,4 @@
-import type { Brief, InvoiceAction, Payment } from './types'
+import type { Brief, Invoice, InvoiceAction, Payment } from './types'
 
 export type InvoiceFilterValues = { status: string; overdue: boolean; customer: Brief | null; from: string; to: string }
 
@@ -37,3 +37,6 @@ export const PAYMENT_METHODS: Record<Payment['method'], string> = {
   CHEQUE: 'Cheque',
   OTHER: 'Other',
 }
+
+/** A customer can pay online while a confirmed invoice still has a balance. */
+export const canPayOnline = (invoice: Invoice) => invoice.status === 'CONFIRMED' && Number(invoice.outstanding) > 0

@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { eventText, STATUS_FLOW, STATUS_LABEL } from '@/lib/subscriptions'
+import { eventText, isAddonEvent, STATUS_FLOW, STATUS_LABEL } from '@/lib/subscriptions'
 import { formatDateTime } from '@/lib/format'
 import type { SubEvent, SubStatus } from '@/lib/types'
 import { Badge } from './ui'
@@ -37,12 +37,12 @@ export function EventHistory({ events, staff = false }: { events: SubEvent[]; st
         <li key={e.id} className="grid grid-cols-[auto_1fr] gap-3 text-[13px]">
           <span className="mt-1.5 size-2 rotate-45 bg-brand" aria-hidden />
           <div>
-            <p className="font-medium">{eventText(e.from_status, e.to_status)}</p>
+            <p className="font-medium">{eventText(e.from_status, e.to_status, e.reason)}</p>
             <p className="text-xs text-muted">
               {formatDateTime(e.created_at)}
               {e.actor_name ? ` · ${e.actor_name}` : staff && e.from_status !== null ? ' · System' : ''}
             </p>
-            {e.reason && <p className="mt-0.5 text-muted">“{e.reason}”</p>}
+            {e.reason && !isAddonEvent(e) && <p className="mt-0.5 text-muted">“{e.reason}”</p>}
           </div>
         </li>
       ))}

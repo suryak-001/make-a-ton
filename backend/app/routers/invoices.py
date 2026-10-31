@@ -5,12 +5,14 @@ from html import escape
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select
+from sqlalchemy import or_, select
+from sqlalchemy.orm import joinedload
 
+from app.core.csv_export import csv_response
 from app.core.deps import AdminUser, Db, StaffUser
-from app.core.pagination import Page, Pages, paginate
+from app.core.pagination import Page, Pages, like_pattern, paginate
 from app.enums import InvoiceStatus
-from app.models import Invoice
+from app.models import Customer, Invoice
 from app.schemas.money import BillingRunIn, BillingRunOut, InvoiceOut
 from app.services import invoices as svc
 from app.services.billing import rebill_invoice, run_billing
@@ -18,6 +20,29 @@ from app.services.invoice_queries import overdue_conditions, present_conditions
 from app.services.money_views import INVOICE_LOAD, invoice_out, load_invoice
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
+
+
+def _conditions(
+    status: InvoiceStatus | None,
+    customer_id: int | None,
+    from_date: date | None,
+    to_date: date | None,
+    overdue: bool | None,
+    q: str | None,
+) -> list:
+    conditions = present_conditions(
+        (status, lambda v: Invoice.status == v),
+        (customer_id, lambda v: Invoice.customer_id == v),
+        (from_date, lambda v: Invoice.invoice_date >= v),
+        (to_date, lambda v: Invoice.invoice_date <= v),
+    )
+    if overdue:
+        conditions += overdue_conditions()
+    if q and q.strip():
+        like = like_pattern(q)
+        customers = select(Customer.id).where(Customer.name.ilike(like, escape="\\"))
+        conditions.append(or_(Invoice.number.ilike(like, escape="\\"), Invoice.customer_id.in_(customers)))
+    return conditions
 
 
 @router.get("", response_model=Page[InvoiceOut])
@@ -30,18 +55,77 @@ def list_invoices(
     from_date: date | None = None,
     to_date: date | None = None,
     overdue: bool | None = None,
+    q: str | None = None,
 ):
-    conditions = present_conditions(
-        (status, lambda v: Invoice.status == v),
-        (customer_id, lambda v: Invoice.customer_id == v),
-        (from_date, lambda v: Invoice.invoice_date >= v),
-        (to_date, lambda v: Invoice.invoice_date <= v),
-    )
-    if overdue:
-        conditions += overdue_conditions()
+    """`q` matches the invoice number or the customer's name."""
+    conditions = _conditions(status, customer_id, from_date, to_date, overdue, q)
     stmt = select(Invoice).where(*conditions).options(*INVOICE_LOAD).order_by(Invoice.id.desc())
     rows, total = paginate(db, stmt, pages)
     return Page(items=[invoice_out(i) for i in rows], total=total, page=pages.page, page_size=pages.page_size)
+
+
+@router.get("/export.csv")
+def export_invoices(
+    db: Db,
+    _: StaffUser,
+    status: InvoiceStatus | None = None,
+    customer_id: int | None = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    overdue: bool | None = None,
+    q: str | None = None,
+):
+    """Every invoice the list's filters match, without paging."""
+    conditions = _conditions(status, customer_id, from_date, to_date, overdue, q)
+    stmt = (
+        select(Invoice)
+        .where(*conditions)
+        .options(joinedload(Invoice.customer), joinedload(Invoice.subscription))
+        .order_by(Invoice.id.desc())
+    )
+    today = date.today()
+    rows = (
+        (
+            i.number or f"Draft #{i.id}",
+            i.status,
+            i.customer.name,
+            i.customer.email,
+            i.subscription.number,
+            i.period_start,
+            i.period_end,
+            i.invoice_date,
+            i.due_date,
+            i.subtotal,
+            i.discount_total,
+            i.tax_total,
+            i.total,
+            i.amount_paid,
+            i.total - i.amount_paid if i.status == InvoiceStatus.CONFIRMED else "0.00",
+            "yes"
+            if i.status == InvoiceStatus.CONFIRMED and i.due_date < today and i.amount_paid < i.total
+            else "no",
+        )
+        for i in db.scalars(stmt)
+    )
+    header = [
+        "Invoice",
+        "Status",
+        "Customer",
+        "Email",
+        "Subscription",
+        "Period start",
+        "Period end",
+        "Invoice date",
+        "Due date",
+        "Subtotal",
+        "Discount",
+        "Tax",
+        "Total",
+        "Paid",
+        "Outstanding",
+        "Overdue",
+    ]
+    return csv_response("invoices", header, rows)
 
 
 @router.post("/run-billing", response_model=BillingRunOut)

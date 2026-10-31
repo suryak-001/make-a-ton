@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ActionButtons } from '@/components/ActionButtons'
+import { AddonsPanel } from '@/components/AddonsPanel'
 import { Alert } from '@/components/forms'
 import { SubscriptionView } from '@/components/SubscriptionView'
 import { buttonClass } from '@/components/button-class'
@@ -46,6 +47,7 @@ export default function SubscriptionDetail() {
           <SubscriptionView
             staff
             sub={sub.data}
+            afterLines={<AddonsPanel sub={sub.data} base="/subscriptions" />}
             actions={
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <ActionButtons sub={sub.data} base="/subscriptions" />

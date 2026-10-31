@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import { ActionButtons } from '@/components/ActionButtons'
+import { AddonsPanel } from '@/components/AddonsPanel'
 import { Alert } from '@/components/forms'
 import { SubscriptionView } from '@/components/SubscriptionView'
 import { PageHeader } from '@/components/ui'
@@ -29,6 +30,7 @@ export default function PortalSubscriptionDetail() {
         <div className="max-w-4xl">
           <SubscriptionView
             sub={sub.data}
+            afterLines={<AddonsPanel sub={sub.data} base="/portal-subscriptions" />}
             actions={
               <>
                 <ActionButtons sub={sub.data} base="/portal-subscriptions" />

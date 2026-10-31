@@ -90,6 +90,7 @@ class LineOut(BaseModel):
     tax_amount: Decimal
     amount: Decimal
     taxes: list[TaxOut]
+    is_addon: bool  # can be switched off while the subscription is live
 
 
 class EventOut(BaseModel):
@@ -137,6 +138,32 @@ class SubscriptionDetail(PortalSubscriptionDetail):
     notes: str | None
     created_by: str | None
     editable: bool  # DRAFT and QUOTATION can still be edited
+
+
+class AddonVariant(BaseModel):
+    id: int
+    label: str  # "Brand: Odoo"
+    extra_price: Decimal
+
+
+class AddonOption(BaseModel):
+    product_id: int
+    name: str
+    notes: str | None
+    unit_price: Decimal  # before variant extras and taxes
+    taxes: list[str]
+    variants: list[AddonVariant]
+    line_id: int | None  # the subscription line when it is switched on
+    quantity: int | None
+
+
+class AddonsOut(BaseModel):
+    """The add-ons a subscription can carry, and whether they can be switched on or off right now."""
+
+    editable: bool
+    blocker: str | None  # why not, when editable is false
+    min_quantity: int  # the plan's minimum per line applies to add-ons too
+    options: list[AddonOption]
 
 
 class LifecycleResult(BaseModel):

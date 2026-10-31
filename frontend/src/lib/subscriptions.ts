@@ -44,8 +44,13 @@ export function actionInfo(current: SubStatus, action: string): ActionInfo {
   }
 }
 
-export function eventText(from: SubStatus | null, to: SubStatus): string {
+/** An add-on change keeps the status; the server writes what changed as the reason ("Add-on switched on: …"). */
+export const isAddonEvent = (e: { from_status: SubStatus | null; to_status: SubStatus; reason: string | null }) =>
+  e.from_status === e.to_status && Boolean(e.reason?.startsWith('Add-on '))
+
+export function eventText(from: SubStatus | null, to: SubStatus, reason: string | null = null): string {
   if (from === null) return 'Created as a draft'
+  if (isAddonEvent({ from_status: from, to_status: to, reason })) return reason!
   if (from === to) return 'Renewed'
   return `${STATUS_LABEL[from]} → ${STATUS_LABEL[to]}`
 }

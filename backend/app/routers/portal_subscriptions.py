@@ -1,4 +1,4 @@
-"""Owner: B — a customer's own subscriptions, with self-service pause / resume / close / renew.
+"""Owner: B — a customer's own subscriptions, with self-service pause / resume / close / renew and add-ons.
 
 Every query is scoped to the signed-in customer. Someone else's record is a 404, never a 403,
 so its existence isn't leaked. Drafts are internal and are never shown.
@@ -14,13 +14,15 @@ from app.core.pagination import Page, Pages, paginate
 from app.enums import SubscriptionStatus
 from app.models import Subscription, SubscriptionLine
 from app.schemas.subscriptions import (
+    AddonsOut,
+    LineIn,
     PortalSubscriptionDetail,
     RenewIn,
     SubscriptionListItem,
     TransitionIn,
 )
 from app.services import subscriptions as svc
-from app.services.subscription_views import load_detail, portal_detail
+from app.services.subscription_views import addons_out, load_detail, portal_detail
 
 router = APIRouter(prefix="/api/portal-subscriptions", tags=["portal"])
 
@@ -65,12 +67,16 @@ def list_mine(db: Db, user: CustomerUser, pages: Pages):
     return Page(items=items, total=total, page=pages.page, page_size=pages.page_size)
 
 
-@router.get("/{subscription_id}", response_model=PortalSubscriptionDetail)
-def get_mine(subscription_id: int, db: Db, user: CustomerUser):
+def _load_mine(db: Db, user, subscription_id: int) -> Subscription:
     sub = load_detail(db, subscription_id)
     if sub.customer_id != _customer_id(user) or sub.status == SubscriptionStatus.DRAFT:
         raise NotFound("Subscription not found")
-    return portal_detail(sub)
+    return sub
+
+
+@router.get("/{subscription_id}", response_model=PortalSubscriptionDetail)
+def get_mine(subscription_id: int, db: Db, user: CustomerUser):
+    return portal_detail(_load_mine(db, user, subscription_id))
 
 
 @router.post("/{subscription_id}/transition", response_model=PortalSubscriptionDetail)
@@ -83,5 +89,24 @@ def transition_mine(subscription_id: int, body: TransitionIn, db: Db, user: Cust
 @router.post("/{subscription_id}/renew", response_model=PortalSubscriptionDetail)
 def renew_mine(subscription_id: int, body: RenewIn, db: Db, user: CustomerUser):
     svc.customer_renew(db, user, subscription_id, body.reason)
+    db.commit()
+    return portal_detail(load_detail(db, subscription_id))
+
+
+@router.get("/{subscription_id}/addons", response_model=AddonsOut)
+def list_my_addons(subscription_id: int, db: Db, user: CustomerUser):
+    return addons_out(db, _load_mine(db, user, subscription_id))
+
+
+@router.post("/{subscription_id}/addons", response_model=PortalSubscriptionDetail)
+def add_my_addon(subscription_id: int, body: LineIn, db: Db, user: CustomerUser):
+    svc.customer_add_addon(db, user, subscription_id, body)
+    db.commit()
+    return portal_detail(load_detail(db, subscription_id))
+
+
+@router.delete("/{subscription_id}/addons/{line_id}", response_model=PortalSubscriptionDetail)
+def remove_my_addon(subscription_id: int, line_id: int, db: Db, user: CustomerUser):
+    svc.customer_remove_addon(db, user, subscription_id, line_id)
     db.commit()
     return portal_detail(load_detail(db, subscription_id))

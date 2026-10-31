@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { buttonClass } from '@/components/button-class'
 import { DataTable, Pagination } from '@/components/DataTable'
+import { ExportLink } from '@/components/ExportLink'
 import { InvoiceFilters } from '@/components/InvoiceFilters'
 import { StatusBadge } from '@/components/StatusBadge'
 import { PageHeader } from '@/components/ui'
@@ -33,7 +34,12 @@ export default function InvoiceList() {
       <PageHeader
         title="Invoices"
         description="Confirm, send, collect payment and keep an eye on what is overdue."
-        actions={<Link to="/billing-run" className={buttonClass()}>Billing run</Link>}
+        actions={
+          <>
+            <ExportLink path="/invoices" params={invoiceFilterParams(filters)} />
+            <Link to="/billing-run" className={buttonClass()}>Billing run</Link>
+          </>
+        }
       />
       <InvoiceFilters values={filters} onChange={change} onClear={clear} />
       <DataTable

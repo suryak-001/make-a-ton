@@ -91,6 +91,7 @@ Still to do together at kick-off: review the schema once and agree the API contr
 **Both sides are built and merged to `main`.**
 - **Sell side:** auth with signup and password reset, staff, customers, products and variants, plans, quotation templates, subscriptions with the state machine and history, the lifecycle job, and portal subscriptions.
 - **Money side:** taxes, discounts, invoice generation, the billing run, invoices (confirm, cancel, send, print), payments, reports and the dashboard, and portal invoices.
+- **Beyond the brief:** add-ons switched on and off on a live subscription (staff and portal, billed from the next invoice), a customer page (their dashboard numbers, subscriptions, invoices, payments and one activity timeline), CSV export on every list (same filters as the screen), and bank reconciliation (upload a statement CSV, each credit is matched to an open invoice with the reason shown, approved lines are recorded once and never twice; try it with **Sample statement**).
 - 127 backend tests pass, and the frontend builds and lints clean. The money-side screens (taxes, discounts, billing run, invoices, payments, reports) have been clicked through in a browser against the 5,000-subscription seed. The sell side has not been clicked through end to end yet.
 
 Decisions the build follows (details in `docs/PRD.md`): quote validity starts when the quote is sent, minimum quantity is checked per line, every state change writes a history event, portal pause, close and renew is core, and the invoice number is assigned at Confirm.
@@ -193,4 +194,6 @@ Customer self-service polish, PDF invoice attachment, reminder emails for overdu
 5. **Discount:** admin creates "10% off for 10 or more seats, 5 uses".
 6. **Billing day:** click *Run billing*. Invoices appear with the discount applied and the counts balance. Click again: **0 new invoices**. Move the date forward: exactly the missed periods are billed.
 7. **Money comes in:** record a partial payment, then the rest. The invoice turns Paid. Show the overdue list.
-8. **Finance lead:** open the dashboard on the 5,000-subscription seed, apply filters, and point at the load time.
+8. **Bank statement:** Payments → *Match bank statement* → *Sample statement*, drop it back in. Sure and likely matches are ticked, the unknown refund is left for a person. Record, then upload the same file again: every line shows *Recorded before*.
+9. **Add-ons:** sign in as the customer and switch *Priority support* on in the portal. The line and total change, and the history says who did it.
+10. **Finance lead:** open the dashboard on the 5,000-subscription seed, apply filters, and point at the load time.

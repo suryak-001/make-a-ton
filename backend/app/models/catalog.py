@@ -30,6 +30,8 @@ class Product(Base):
     cost_price: Mapped[Money] = mapped_column(default=Decimal("0"))
     notes: Mapped[str | None]
     active: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
+    # An add-on can be switched on and off on a live subscription, by staff or by the customer in the portal.
+    is_addon: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     created_at: Mapped[Timestamp] = mapped_column(default=utcnow)
 
     variants: Mapped[list["ProductVariant"]] = relationship(

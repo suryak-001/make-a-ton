@@ -1,8 +1,10 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { buttonClass } from '@/components/button-class'
 import { DateField } from '@/components/DateField'
 import { DataTable, Pagination } from '@/components/DataTable'
+import { ExportLink } from '@/components/ExportLink'
 import { FormField, Select } from '@/components/forms'
 import { PageHeader } from '@/components/ui'
 import { api, type Page, qs } from '@/lib/api'
@@ -28,7 +30,16 @@ export default function PaymentsPage() {
 
   return (
     <>
-      <PageHeader title="Payments" description="Money received and the invoices it settled. Record a payment from the invoice itself." />
+      <PageHeader
+        title="Payments"
+        description="Money received and the invoices it settled. Record a payment from the invoice itself, or match a bank statement."
+        actions={
+          <>
+            <ExportLink path="/payments" params={{ method, from_date: from, to_date: to }} />
+            <Link to="/reconciliation" className={buttonClass()}>Match bank statement</Link>
+          </>
+        }
+      />
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-line bg-paper p-3">
         <FormField label="Method" htmlFor="payment-method">
           <Select id="payment-method" value={method} onChange={(e) => filter(() => setMethod(e.target.value))} className="w-44">

@@ -16,11 +16,12 @@ type Draft = {
   cost_price: string
   notes: string
   active: boolean
+  is_addon: boolean
   variants: VariantDraft[]
   default_tax_ids: number[]
 }
 
-const EMPTY: Draft = { name: '', type: 'SERVICE', sales_price: '', cost_price: '0', notes: '', active: true, variants: [], default_tax_ids: [] }
+const EMPTY: Draft = { name: '', type: 'SERVICE', sales_price: '', cost_price: '0', notes: '', active: true, is_addon: false, variants: [], default_tax_ids: [] }
 
 function toDraft(p: Product): Draft {
   return {
@@ -30,6 +31,7 @@ function toDraft(p: Product): Draft {
     cost_price: p.cost_price,
     notes: p.notes ?? '',
     active: p.active,
+    is_addon: p.is_addon,
     variants: p.variants.map((v) => ({ id: v.id, attribute: v.attribute, value: v.value, extra_price: v.extra_price })),
     default_tax_ids: p.default_taxes.map((t) => t.id),
   }
@@ -120,8 +122,9 @@ function ProductEditor({ product }: { product?: Product }) {
                 <option value="GOODS">Goods</option>
               </Select>
             </FormField>
-            <div className="flex items-end pb-2">
+            <div className="grid content-end gap-3 pb-2">
               <Checkbox label="Active" hint="Inactive products can't be added to new subscriptions." checked={draft.active} onChange={(e) => set('active', e.target.checked)} />
+              <Checkbox label="Add-on" hint="Staff and customers can switch it on and off on a live subscription." checked={draft.is_addon} onChange={(e) => set('is_addon', e.target.checked)} />
             </div>
             <FormField label="Sales price" htmlFor="sales_price" error={f.sales_price}>
               <Input id="sales_price" inputMode="decimal" value={draft.sales_price} onChange={(e) => set('sales_price', e.target.value)} required error={!!f.sales_price} />
