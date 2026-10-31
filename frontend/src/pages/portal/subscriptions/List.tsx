@@ -19,7 +19,7 @@ export default function PortalSubscriptionList() {
 
   return (
     <>
-      <PageHeader title="My subscriptions" description="Everything you subscribe to. Open one to see the details or make changes." />
+      <PageHeader title="My subscriptions" description="Everything you subscribe to. Open one to pause, renew or cancel it." />
       <DataTable
         loading={list.isPending}
         rows={list.data?.items}
@@ -33,6 +33,7 @@ export default function PortalSubscriptionList() {
           { header: 'Started', className: 'whitespace-nowrap', cell: (s) => formatDate(s.start_date) },
           { header: 'Expires', className: 'whitespace-nowrap', cell: (s) => formatDate(s.expiry_date) },
           { header: 'Total', className: 'text-right', cell: (s) => money(s.total) },
+          { header: 'Manage', cell: (s) => (s.status === 'ACTIVE' || s.status === 'PAUSED') ? <span className="font-medium text-brand">Pause or cancel →</span> : <span className="text-muted">View →</span> },
         ]}
       />
       {list.data && <Pagination page={page} pageSize={list.data.page_size} total={list.data.total} onPage={setPage} />}

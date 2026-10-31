@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react'
 import { Navigate, Outlet } from 'react-router'
 import { homeFor, useAuth } from '@/auth/context'
+import Landing from '@/pages/Landing'
 import { BrandMark } from './BrandMark'
 
 export function Home() {
   const { user, loading } = useAuth()
   if (loading) return null
-  return <Navigate to={user ? homeFor(user.role) : '/login'} replace />
+  if (user) return <Navigate to={homeFor(user.role)} replace />
+  return <Landing />
 }
 
 /** Sign-in pages for people who are signed out. */

@@ -48,14 +48,14 @@ export default function PortalHomePage() {
     </div>
 
     <section>
-      <h2 className="mb-3 text-[16px] font-medium">Your subscriptions</h2>
+      <div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="text-[16px] font-medium">Your subscriptions</h2><p className="text-[12px] text-muted">Pause or cancel any time the plan allows it, right here.</p></div><Link to="/portal/subscriptions" className="text-[12px] text-muted hover:underline">View all →</Link></div>
       {data.subscriptions.length === 0 ? <p className="text-[13px] text-muted">You don’t have an active subscription yet.</p> : <div className="grid gap-3">
         {data.subscriptions.map((sub) => <Card key={sub.id} className="flex flex-wrap items-center justify-between gap-4 p-4">
           <div className="min-w-0">
             <Link to={`/portal/subscriptions/${sub.id}`} className="text-[14px] font-medium hover:underline">{sub.number} · {sub.plan}</Link>
             <p className="mt-1 text-[12px] text-muted">{money(sub.total)} per {PERIOD[sub.billing_period] ?? 'period'}{sub.next_invoice_date && ` · next bill ${formatDate(sub.next_invoice_date)}`}{sub.expiry_date && ` · ends ${formatDate(sub.expiry_date)}`}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2"><StatusBadge status={sub.status} /><ActionButtons sub={sub as unknown as PortalSubscription} base="/portal-subscriptions" /></div>
+          <div className="flex flex-wrap items-center gap-2"><StatusBadge status={sub.status} /><ActionButtons sub={sub as unknown as PortalSubscription} base="/portal-subscriptions" />{(sub as unknown as PortalSubscription).allowed_actions.length === 0 && <span className="text-[12px] text-muted">Changes to this plan are made by our team. <Link className="text-brand underline" to={`/portal/subscriptions/${sub.id}`}>Details</Link></span>}</div>
         </Card>)}
       </div>}
     </section>

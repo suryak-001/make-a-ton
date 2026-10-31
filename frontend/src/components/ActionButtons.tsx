@@ -52,13 +52,19 @@ export function ActionButtons({ sub, base }: { sub: PortalSubscription; base: '/
     setError(undefined)
     run.mutate({ action, reason: reasonText?.trim() || undefined })
   }
-  const dialog = asking ? actionInfo(sub.status, asking) : null
+  const portal = base === '/portal-subscriptions'
+  const infoFor = (action: string) => {
+    const info = actionInfo(sub.status, action)
+    // Customers think in "cancel", not "close".
+    return portal && action === 'CLOSED' ? { ...info, label: 'Cancel subscription', help: 'This ends your subscription and stops billing. It can’t be undone.' } : info
+  }
+  const dialog = asking ? infoFor(asking) : null
 
   return (
     <>
       <div className="flex flex-wrap gap-2">
         {sortActions(sub.allowed_actions).map((action, i) => {
-          const info = actionInfo(sub.status, action)
+          const info = infoFor(action)
           return (
             <Button
               key={action}
