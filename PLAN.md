@@ -61,7 +61,10 @@ The browser only talks to the Vite dev server, which proxies `/api` to FastAPI, 
 3. The API contract is frozen in **docs/API_CONTRACT.md**. A change needs both people to agree.
 4. Short branches, small pull requests, merge to `main` at least every hour. Rebase on `main` before a PR. No force pushes.
 5. Commit from your own account with messages that say why. Never commit secrets (`.env` stays ignored).
-6. Both people write tests for their own half, and both can explain every file, including AI-written code.
+6. Both people write tests for their own half, and both can explain every file.
+7. **Build feature by feature.** Both halves of a feature are finished and run together end to end before either person starts the next feature (section 7). Do not let one layer run ahead by more than one feature.
+8. **Integrate every hour.** Merge to `main` hourly. The moment a backend endpoint lands, the frontend swaps its mock data for the real call.
+9. **Cross-explain.** After each feature, each person spends about 5 minutes walking the other through their half, especially billing. Anyone may be asked about any file at the desk.
 
 ---
 
@@ -110,21 +113,26 @@ Pages live in `frontend/src/pages/<route>/index.tsx` and are registered automati
 
 ---
 
-## 7. Timeline
+## 7. Timeline: feature by feature
 
 Written for the 8-hour virtual round (hours from the start). Phase 0 is already done. If the 24-hour final applies, scale each block up by about 3.
 
-| Hours | Person A (backend) | Person B (frontend) | Sync |
-|-------|--------------------|---------------------|------|
-| 0 to 0.5 | Review schema, agree the API contract | Same | **Contract frozen** |
-| 0.5 to 2 | A1, A2, start A3, **A4 seed** | B1, B2, B3 | **Seed and auth ready** |
-| 2 to 4 | A3, A5 | B4, then B5 against the real API | Subscriptions and catalogue endpoints live |
-| 4 to 5.5 | A6, A7 (the billing engine) | B5, B6 (Billing Run page) | **First end-to-end run:** template → subscription → active → billing run → invoice |
-| 5.5 to 6.5 | A8, A9, A10 | B7, B8, B9 | Invoices, payments, dashboard live |
-| 6.5 to 7.25 | A11 tests and performance | B10 polish | **Feature freeze at 6.5.** Only bug fixes after it |
-| 7.25 to 8 | README, clean-clone test, demo rehearsal, submit **before the deadline** | Same | Together |
+Each feature below is built by both people in parallel against the frozen API contract, then **checked together end to end** before the next one starts. The step IDs refer to sections 5 and 6.
 
-If time runs short, cut in this order: portal self-service actions, send-by-email polish, extra dashboard filters, revenue chart. Never cut the Billing Run, the invoice screens, roles or validation.
+| Hours | Feature | Person A (backend) | Person B (frontend) | Done when (check it together) |
+|-------|---------|--------------------|---------------------|-------------------------------|
+| 0 to 0.5 | **Kick-off** | Review the schema, agree `docs/API_CONTRACT.md` | Same | Contract frozen, both can run the app |
+| 0.5 to 1.5 | **F1. Accounts and roles** | A1, A2, start A4 (seed) | B1, B2, B3 | Sign up with a weak password and a duplicate email shows the right messages. Admin adds staff. Staff and customer menus differ. **Seed ready by 1.5** |
+| 1.5 to 2.5 | **F2. Catalogue** | A3 (products, variants, plans, taxes, discounts, templates) | B4 (admin screens) | Create a product with the Odoo variant (+560), a plan and a tax in the UI, and see them in the list |
+| 2.5 to 3.75 | **F3. Quotes and subscriptions** | A5 (subscriptions, state machine, Paused) | B5 (list, detail, state pipeline, quote builder) | Start from a template, walk Draft to Active in the UI, and an illegal move is refused |
+| 3.75 to 5.25 | **F4. Billing and invoices** | A6, A7, A8 (invoices part) | B6 (Billing Run page), B7 (invoices) | Run billing: counts balance and invoices show tax and discount. Run again: 0 created. Move the date: only the missed periods are billed |
+| 5.25 to 6.5 | **F5. Payments, dashboard, portal** | A8 (payments), A9, A10 | B7 (payment form), B8, B9 | Record partial and full payments, see Paid and overdue, the dashboard matches, a customer sees only their own data. **Feature freeze at 6.5** |
+| 6.5 to 7.25 | **Harden** | A11 (tests, `--big` seed, `EXPLAIN`) | B10 (polish, empty states, lint and build) | Everything under 2 seconds on the big seed |
+| 7.25 to 8 | **Submit** | README, clean-clone test, demo rehearsal, submit **before the deadline** | Same | The demo script in section 10 runs without a hitch |
+
+**Rebalancing:** if A is behind at hour 4, B takes the reports or portal endpoints (A9, A10), which are mostly queries. If B is behind, trim polish, not features.
+
+**If time runs short, cut in this order:** portal self-service actions, send-by-email polish, extra dashboard filters, the revenue chart. Never cut the Billing Run, the invoice screens, roles or validation.
 
 ---
 
