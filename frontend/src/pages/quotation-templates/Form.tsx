@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { Alert, FormField, Input, Select, Textarea } from '@/components/forms'
 import { LinesEditor } from '@/components/LinesEditor'
+import { DeleteButton } from '@/components/DeleteButton'
 import { Button, Card, PageHeader } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
 import { EMPTY_LINE, type LineDraft } from '@/lib/lines'
@@ -121,9 +122,7 @@ function TemplateEditor({ template }: { template?: Template }) {
         <div className="flex items-center justify-between">
           <div>
             {template && (
-              <Button type="button" variant="ghost" className="text-danger" disabled={remove.isPending} onClick={() => confirm(`Delete ${template.name}?`) && remove.mutate()}>
-                Delete template
-              </Button>
+              <DeleteButton label="Delete template" name={template.name} pending={remove.isPending} onConfirm={() => remove.mutate()} />
             )}
           </div>
           <div className="flex gap-2">

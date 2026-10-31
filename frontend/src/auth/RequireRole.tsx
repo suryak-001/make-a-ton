@@ -11,6 +11,7 @@ export function RequireRole({ roles, children }: { roles: Role[]; children: Reac
   const { user, loading } = useAuth()
   if (loading) return <p className="p-8 text-sm text-muted">Loading…</p>
   if (!user) return <Navigate to="/login" replace />
+  if (user.must_change_password) return <Navigate to="/change-password" replace />
   if (!roles.includes(user.role)) return <Forbidden />
   return children
 }

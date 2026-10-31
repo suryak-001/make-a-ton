@@ -30,7 +30,11 @@ def list_mine(db: Db, user: CustomerUser, pages: Pages):
         return Page(items=[], total=0, page=pages.page, page_size=pages.page_size)
     stmt = (
         select(Invoice)
-        .where(Invoice.customer_id == user.customer.id, Invoice.status != InvoiceStatus.DRAFT)
+        .where(
+            Invoice.customer_id == user.customer.id,
+            Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.number.is_not(None),
+        )
         .options(*INVOICE_LOAD)
         .order_by(Invoice.id.desc())
     )
@@ -45,6 +49,7 @@ def _mine(invoice_id: int, db: Db, user) -> Invoice:
             Invoice.id == invoice_id,
             Invoice.customer_id == _customer_id(user),
             Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.number.is_not(None),  # cancelled before it was ever confirmed: never reached the customer
         )
         .options(*INVOICE_LOAD)
     )

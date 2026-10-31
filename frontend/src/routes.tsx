@@ -3,9 +3,10 @@ import { Navigate, createBrowserRouter } from 'react-router'
 import { RequireRole } from '@/auth/RequireRole'
 import { AppShell } from '@/components/AppShell'
 import { Forbidden } from '@/components/Forbidden'
-import { Home, PublicOnly } from '@/components/RouteLayouts'
+import { Home, PasswordGate, PublicOnly } from '@/components/RouteLayouts'
 import { Placeholder } from '@/components/Placeholder'
 import { APP_NAV, PORTAL_NAV, type NavItem } from '@/nav'
+import ChangePassword from '@/pages/auth/ChangePassword'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
 import ResetPassword from '@/pages/auth/ResetPassword'
 import Signup from '@/pages/auth/Signup'
@@ -31,6 +32,7 @@ function routeFor(item: NavItem) {
 
 export const router = createBrowserRouter([
   { path: '/', element: <Home /> },
+  { path: '/change-password', element: <PasswordGate><ChangePassword /></PasswordGate> },
   {
     element: <PublicOnly />,
     children: [

@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     name: str
     role: Role
     customer_id: int | None = None
+    must_change_password: bool = False
 
 
 class SignupIn(BaseModel):
@@ -43,3 +44,8 @@ class ForgotPasswordIn(BaseModel):
 class ResetPasswordIn(BaseModel):
     token: str
     password: Password
+
+
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: Password

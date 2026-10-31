@@ -37,6 +37,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   })
   if (res.status === 204) return undefined as T
   const data = await res.json().catch(() => null)
+  if (res.status === 401 && !path.startsWith('/auth/') && window.location.pathname !== '/login') {
+    window.location.assign('/login') // the session ended (signed out elsewhere or expired): go sign in again
+  }
   if (!res.ok) throw parseError(res.status, data?.detail)
   return data as T
 }

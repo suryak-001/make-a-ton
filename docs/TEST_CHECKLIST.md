@@ -107,7 +107,7 @@ Demo payment gateway (online checkout, no real money):
 - [ ] Pause and resume an active subscription on a pausable plan. A non-pausable plan offers no pause.
 - [ ] Close a subscription on a closable plan; the yearly plan does not offer early close.
 - [ ] Renew a subscription on a renewable plan; the weekly trial does not offer renew.
-- [ ] **Run lifecycle job** (Subscriptions page): reports how many were closed and how many quotes expired.
+- [ ] **Run lifecycle job** (admin only, Subscriptions page; staff do not see the button): reports how many were closed and how many quotes expired.
 - [ ] Subscriptions list: filter by status, customer and plan; page through; export to CSV with the same filters.
 
 ## 6. Billing day (staff or admin)

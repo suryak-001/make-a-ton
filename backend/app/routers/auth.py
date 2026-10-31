@@ -20,7 +20,7 @@ from app.core.security import (
 from app.enums import Role
 from app.models import Customer, PasswordResetToken, User
 from app.models.base import utcnow
-from app.schemas.auth import ForgotPasswordIn, LoginIn, ResetPasswordIn, SignupIn, UserOut
+from app.schemas.auth import ChangePasswordIn, ForgotPasswordIn, LoginIn, ResetPasswordIn, SignupIn, UserOut
 from app.services.mail import send_mail
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -36,6 +36,7 @@ def user_out(user: User) -> UserOut:
         name=user.name,
         role=user.role,
         customer_id=user.customer.id if user.customer else None,
+        must_change_password=user.must_change_password,
     )
 
 
@@ -89,6 +90,18 @@ def me(user: CurrentUser):
     return user_out(user)
 
 
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(body: ChangePasswordIn, user: CurrentUser, db: Db):
+    """The signed-in person chooses a new password (required once for staff an admin added)."""
+    if not verify_password(body.current_password, user.password_hash):
+        raise Invalid("The current password is not right.", field="current_password")
+    if verify_password(body.new_password, user.password_hash):
+        raise Invalid("Choose a password you haven't used just now.", field="new_password")
+    user.password_hash = hash_password(body.new_password)
+    user.must_change_password = False
+    db.commit()
+
+
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
 def forgot_password(body: ForgotPasswordIn, db: Db):
     """Emails a reset link to the registered address. The response is identical whether or not the
@@ -127,5 +140,6 @@ def reset_password(body: ResetPasswordIn, db: Db):
         raise Invalid("This reset link is invalid or has expired. Request a new one.")
     user = db.get(User, record.user_id)
     user.password_hash = hash_password(body.password)
+    user.must_change_password = False
     record.used_at = now  # single use
     db.commit()

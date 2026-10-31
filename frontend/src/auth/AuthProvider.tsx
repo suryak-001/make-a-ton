@@ -33,10 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading: me.isPending,
         login: (email, password) => loginMutation.mutateAsync({ email, password }),
         signup: (name, email, password) => signupMutation.mutateAsync({ name, email, password }),
+        refresh: async () => { await qc.invalidateQueries({ queryKey: ['me'] }) },
         logout: async () => {
           await api.post('/auth/logout')
-          qc.clear() // never keep another user's cached data around
           qc.setQueryData(['me'], null)
+          qc.removeQueries({ predicate: (query) => query.queryKey[0] !== 'me' }) // never keep another user's cached data around
         },
       }}
     >

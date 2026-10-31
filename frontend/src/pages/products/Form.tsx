@@ -4,7 +4,9 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { useAuth } from '@/auth/context'
 import { Alert, Checkbox, FormField, Input, Select, Textarea } from '@/components/forms'
 import { TaxPicker } from '@/components/TaxPicker'
+import { DeleteButton } from '@/components/DeleteButton'
 import { Button, Card, PageHeader } from '@/components/ui'
+import { money } from '@/lib/format'
 import { api, ApiError } from '@/lib/api'
 import type { Product } from '@/lib/types'
 
@@ -95,6 +97,8 @@ function ProductEditor({ product }: { product?: Product }) {
   }
 
   const f = error?.fields ?? {}
+  const sales = Number(draft.sales_price)
+  const margin = sales > 0 && draft.cost_price !== '' ? Math.round(((sales - Number(draft.cost_price)) / sales) * 100) : undefined
   // Field errors render under their input; anything else (conflicts, whole-form errors) goes in the alert.
   const shownInline = Object.keys(f).some((k) => ['name', 'type', 'sales_price', 'cost_price', 'notes'].includes(k) || /^variants\.\d/.test(k))
   const generalError = error && !shownInline ? error.message : undefined
@@ -126,11 +130,12 @@ function ProductEditor({ product }: { product?: Product }) {
               <Checkbox label="Active" hint="Inactive products can't be added to new subscriptions." checked={draft.active} onChange={(e) => set('active', e.target.checked)} />
               <Checkbox label="Add-on" hint="Staff and customers can switch it on and off on a live subscription." checked={draft.is_addon} onChange={(e) => set('is_addon', e.target.checked)} />
             </div>
-            <FormField label="Sales price" htmlFor="sales_price" error={f.sales_price}>
+            <FormField label="Sales price (₹)" htmlFor="sales_price" error={f.sales_price}>
               <Input id="sales_price" inputMode="decimal" value={draft.sales_price} onChange={(e) => set('sales_price', e.target.value)} required error={!!f.sales_price} />
             </FormField>
-            <FormField label="Cost price" htmlFor="cost_price" error={f.cost_price}>
+            <FormField label="Cost price (₹)" htmlFor="cost_price" error={f.cost_price}>
               <Input id="cost_price" inputMode="decimal" value={draft.cost_price} onChange={(e) => set('cost_price', e.target.value)} error={!!f.cost_price} />
+              {margin !== undefined && <p className="text-xs text-muted">Margin {margin}% on the sales price.</p>}
             </FormField>
             <FormField label="Notes" htmlFor="notes" error={f.notes} className="sm:col-span-2">
               <Textarea id="notes" value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
@@ -176,6 +181,7 @@ function ProductEditor({ product }: { product?: Product }) {
                     )}
                   </div>
                 ))}
+                <p className="text-xs text-muted">Customers pay the sales price plus the extra price of the variant they choose. {draft.variants.filter((v) => v.value).map((v) => `${v.value}: ${money(sales + Number(v.extra_price || 0))}`).join(' · ')}</p>
               </div>
             )}
           </Card>
@@ -186,9 +192,7 @@ function ProductEditor({ product }: { product?: Product }) {
           <div className="flex items-center justify-between">
             <div>
               {product && (
-                <Button type="button" variant="ghost" className="text-danger" disabled={remove.isPending} onClick={() => confirm(`Delete ${product.name}?`) && remove.mutate()}>
-                  Delete product
-                </Button>
+                <DeleteButton label="Delete product" name={product.name} pending={remove.isPending} onConfirm={() => remove.mutate()} />
               )}
             </div>
             <div className="flex gap-2">

@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router'
 import { homeFor, useAuth } from '@/auth/context'
 import { Alert, FormField, Input } from '@/components/forms'
 import { PasswordField } from '@/components/PasswordField'
-import { Button, Card } from '@/components/ui'
+import { AuthPanel } from '@/components/AuthPanel'
+import { Button } from '@/components/ui'
 import { ApiError } from '@/lib/api'
 import { passwordIsValid } from '@/lib/password'
 
@@ -36,9 +37,12 @@ export default function Signup() {
   const unmapped = error && Object.keys(fields).length === 0
 
   return (
-    <Card className="p-6">
-      <h1 className="text-lg font-semibold">Create your account</h1>
-      <p className="mb-4 text-sm text-muted">Manage your subscriptions and invoices in one place.</p>
+    <AuthPanel
+      eyebrow="New account"
+      title="Create your account."
+      subtitle="Manage your subscriptions and invoices in one place."
+      footer={<><span className="text-muted">Already have an account?</span><Link to="/login" className="hover:underline">Sign in</Link></>}
+    >
       <form onSubmit={onSubmit} className="grid gap-4" noValidate>
         <FormField label="Name" htmlFor="name" error={fields.name}>
           <Input id="name" name="name" autoComplete="name" required error={!!fields.name} />
@@ -52,12 +56,6 @@ export default function Signup() {
           {pending ? 'Creating account…' : 'Create account'}
         </Button>
       </form>
-      <p className="mt-4 text-center text-sm text-muted">
-        Already have an account?{' '}
-        <Link to="/login" className="text-ink hover:underline">
-          Sign in
-        </Link>
-      </p>
-    </Card>
+    </AuthPanel>
   )
 }

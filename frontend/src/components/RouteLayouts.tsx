@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Navigate, Outlet } from 'react-router'
 import { homeFor, useAuth } from '@/auth/context'
 import { BrandMark } from './BrandMark'
@@ -8,10 +9,24 @@ export function Home() {
   return <Navigate to={user ? homeFor(user.role) : '/login'} replace />
 }
 
+/** Sign-in pages for people who are signed out. */
 export function PublicOnly() {
   const { user, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to={homeFor(user.role)} replace />
+  if (user) return <Navigate to={user.must_change_password ? '/change-password' : homeFor(user.role)} replace />
+  return <AuthLayout><Outlet /></AuthLayout>
+}
+
+/** The first-sign-in page: needs a session but is not the app yet. */
+export function PasswordGate({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return <Navigate to="/login" replace />
+  if (!user.must_change_password) return <Navigate to={homeFor(user.role)} replace />
+  return <AuthLayout>{children}</AuthLayout>
+}
+
+function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="grid min-h-screen bg-surface lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,.85fr)]">
       <section className="relative hidden overflow-hidden border-r border-ink bg-brand p-10 text-paper lg:flex lg:flex-col lg:justify-between">
@@ -29,7 +44,7 @@ export function PublicOnly() {
       <section className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden"><BrandMark /></div>
-          <Outlet />
+          {children}
           <p className="mt-6 text-center text-[10px] uppercase tracking-[0.16em] text-muted">Brightloop operating system</p>
         </div>
       </section>

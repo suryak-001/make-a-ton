@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useAuth } from '@/auth/context'
 import { Alert, Checkbox, FormField, Input, Select } from '@/components/forms'
+import { DeleteButton } from '@/components/DeleteButton'
 import { Button, Card, PageHeader } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
 import { PERIOD_LABEL, type BillingPeriod, type Plan } from '@/lib/types'
@@ -125,7 +126,7 @@ function PlanEditor({ plan }: { plan?: Plan }) {
                 ))}
               </Select>
             </FormField>
-            <FormField label="Price" htmlFor="price" error={f.price}>
+            <FormField label="Plan fee (₹)" htmlFor="price" error={f.price} hint="Added once per billing period on top of the products. Leave 0 if you only bill products.">
               <Input id="price" inputMode="decimal" value={draft.price} onChange={(e) => set('price', e.target.value)} error={!!f.price} />
             </FormField>
             <FormField label="Minimum quantity" htmlFor="min_quantity" error={f.min_quantity} hint="Total quantity a subscription on this plan must have.">
@@ -156,9 +157,7 @@ function PlanEditor({ plan }: { plan?: Plan }) {
           <div className="flex items-center justify-between">
             <div>
               {plan && (
-                <Button type="button" variant="ghost" className="text-danger" disabled={remove.isPending} onClick={() => confirm(`Delete ${plan.name}?`) && remove.mutate()}>
-                  Delete plan
-                </Button>
+                <DeleteButton label="Delete plan" name={plan.name} pending={remove.isPending} onConfirm={() => remove.mutate()} />
               )}
             </div>
             <div className="flex gap-2">

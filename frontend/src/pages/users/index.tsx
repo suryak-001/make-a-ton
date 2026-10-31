@@ -138,7 +138,7 @@ function InviteCard({ invite, onDone }: { invite: { name: string; email: string;
     `Email: ${invite.email}`,
     `Password: ${invite.password}`,
     '',
-    'Please change your password after you sign in.',
+    'This password is temporary: you will choose your own the first time you sign in.',
   ].join('\n')
 
   async function copy() {

@@ -9,7 +9,9 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '@/auth/context'
 import type { NavItem } from '@/nav'
 import { BrandMark } from './BrandMark'
+import { AccountMenu } from './AccountMenu'
 import { CommandPalette } from './CommandPalette'
+import { useSignOut } from '@/auth/useSignOut'
 
 const ROLE_LABEL = { ADMIN: 'Admin workspace', STAFF: 'Staff workspace', CUSTOMER: 'Customer portal' } as const
 
@@ -63,7 +65,7 @@ function Navigation({ items, onChoose }: { items: NavItem[]; onChoose?: () => vo
 
 function AccountFooter({ name, email, role, profile, onSignOut, onChoose }: { name: string; email: string; role: keyof typeof ROLE_LABEL; profile: string; onSignOut: () => void; onChoose?: () => void }) {
   return <div className="flex items-center gap-3 border-t border-line p-3">
-    <NavLink to={profile} onClick={onChoose} title="Your profile" className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1 hover:bg-surface">
+    <NavLink to={profile} onClick={onChoose} title="Profile" className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-1 hover:bg-surface">
       <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-medium text-white">{name.slice(0, 2).toUpperCase()}</span>
       <div className="min-w-0 flex-1"><p className="truncate text-[12px] font-medium">{name}</p><p className="truncate text-[10px] text-muted">{email || ROLE_LABEL[role]}</p></div>
     </NavLink>
@@ -72,8 +74,9 @@ function AccountFooter({ name, email, role, profile, onSignOut, onChoose }: { na
 }
 
 export function AppShell({ nav }: { nav: NavItem[] }) {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
+  const signOut = useSignOut()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const items = useMemo(() => user ? nav.filter((item) => item.roles.includes(user.role)) : [], [nav, user])
@@ -90,7 +93,6 @@ export function AppShell({ nav }: { nav: NavItem[] }) {
   }, [drawerOpen])
 
   if (!user) return null
-  const signOut = async () => { await logout(); navigate('/login', { replace: true }) }
   const email = 'email' in user && typeof user.email === 'string' ? user.email : ''
   const profile = user.role === 'CUSTOMER' ? '/portal/profile' : '/profile'
   const home = items.find((item) => item.href.includes('/dashboard'))?.href ?? items[0]?.href ?? '/'
@@ -115,7 +117,7 @@ export function AppShell({ nav }: { nav: NavItem[] }) {
         <div className="hidden sm:block xl:hidden"><BrandMark compact /></div>
         <div className="min-w-0 flex-1 sm:border-l sm:border-line sm:pl-3 xl:border-0 xl:pl-0"><p className="truncate text-[13px] font-medium">{current?.label ?? 'Workspace'}</p><p className="hidden truncate text-[10px] text-muted sm:block">{group} · {ROLE_LABEL[user.role]}</p></div>
         <CommandPalette items={items} />
-        <NavLink to={profile} aria-label="Your profile" title="Your profile" className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-[10px] font-medium text-white xl:hidden">{user.name.slice(0, 2).toUpperCase()}</NavLink>
+        <AccountMenu profile={profile} />
       </header>
 
       <main className="rand-grid min-h-[calc(100vh-60px)] px-4 py-4 sm:px-6 sm:py-5 xl:px-8 xl:py-6">

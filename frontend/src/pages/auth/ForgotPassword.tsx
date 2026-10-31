@@ -1,7 +1,8 @@
 import { type FormEvent, useState } from 'react'
 import { Link } from 'react-router'
 import { Alert, FormField, Input } from '@/components/forms'
-import { Button, Card } from '@/components/ui'
+import { AuthPanel } from '@/components/AuthPanel'
+import { Button } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
 
 export default function ForgotPassword() {
@@ -25,9 +26,12 @@ export default function ForgotPassword() {
   }
 
   return (
-    <Card className="p-6">
-      <h1 className="text-lg font-semibold">Forgot your password?</h1>
-      <p className="mb-4 text-sm text-muted">Enter your registered email and we&apos;ll send you a link to reset it.</p>
+    <AuthPanel
+      eyebrow="Password help"
+      title="Forgot your password?"
+      subtitle="Enter your registered email and we’ll send you a link to reset it."
+      footer={<Link to="/login" className="text-muted hover:underline">Back to sign in</Link>}
+    >
       {sent ? (
         <Alert kind="success">If an account exists for that email, a reset link is on its way. It works for one hour.</Alert>
       ) : (
@@ -41,11 +45,6 @@ export default function ForgotPassword() {
           </Button>
         </form>
       )}
-      <p className="mt-4 text-center text-sm">
-        <Link to="/login" className="text-muted hover:underline">
-          Back to sign in
-        </Link>
-      </p>
-    </Card>
+    </AuthPanel>
   )
 }

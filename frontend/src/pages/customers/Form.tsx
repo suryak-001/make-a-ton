@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
+import { DeleteButton } from '@/components/DeleteButton'
 import { Alert, FormField, Input, Textarea } from '@/components/forms'
 import { Button } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
@@ -55,15 +56,7 @@ export function CustomerForm({ customer, onDone, onDeleted = onDone }: { custome
       <div className="flex items-center justify-between gap-2">
         <div>
           {customer && (
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-danger"
-              disabled={remove.isPending}
-              onClick={() => confirm(`Delete ${customer.name}?`) && remove.mutate()}
-            >
-              Delete
-            </Button>
+            <DeleteButton label="Delete customer" name={customer.name} pending={remove.isPending} onConfirm={() => remove.mutate()} />
           )}
         </div>
         <div className="flex gap-2">

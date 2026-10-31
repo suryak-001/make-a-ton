@@ -8,6 +8,7 @@ export type User = {
   name: string
   role: Role
   customer_id: number | null // set for CUSTOMER users — portal queries are scoped by it server-side
+  must_change_password?: boolean // staff an admin added: must pick their own password first
 }
 
 export type AuthState = {
@@ -15,6 +16,7 @@ export type AuthState = {
   loading: boolean
   login: (email: string, password: string) => Promise<User>
   signup: (name: string, email: string, password: string) => Promise<User>
+  refresh: () => Promise<void>
   logout: () => Promise<void>
 }
 

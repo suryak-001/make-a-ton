@@ -35,7 +35,13 @@ def list_users(db: Db, _: AdminUser, pages: Pages, q: str | None = None, role: R
 def add_staff(body: StaffCreate, db: Db, _: AdminUser):
     if db.scalar(select(User.id).where(User.email == body.email)):
         raise Conflict("An account with this email already exists.", field="email")
-    user = User(email=body.email, name=body.name, role=Role.STAFF, password_hash=hash_password(body.password))
+    user = User(
+        email=body.email,
+        name=body.name,
+        role=Role.STAFF,
+        password_hash=hash_password(body.password),
+        must_change_password=True,
+    )
     db.add(user)
     try:
         db.commit()

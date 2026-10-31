@@ -1,7 +1,7 @@
 import { KeyRound, LogOut, Mail, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
 import { useAuth } from '@/auth/context'
+import { useSignOut } from '@/auth/useSignOut'
 import { Alert } from '@/components/forms'
 import { Button, Card, PageHeader } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
@@ -10,8 +10,8 @@ const ROLE = { ADMIN: 'Admin', STAFF: 'Staff', CUSTOMER: 'Customer' } as const
 
 /** Opened from the avatar: who you are signed in as, and the account actions that belong to you. */
 export default function Profile() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
+  const signOut = useSignOut()
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string>()
   const [pending, setPending] = useState(false)
@@ -32,7 +32,7 @@ export default function Profile() {
 
   return (
     <>
-      <PageHeader title="Your profile" description="The account you are signed in with." />
+      <PageHeader title="Profile" description="The account you are signed in with." />
       <div className="grid max-w-2xl gap-5">
         <Card className="flex items-center gap-4 p-5">
           <span className="grid size-16 shrink-0 place-items-center rounded-full bg-brand text-[20px] font-medium text-white">{user.name.slice(0, 2).toUpperCase()}</span>
@@ -49,7 +49,7 @@ export default function Profile() {
           {error && <Alert>{error}</Alert>}
           <div><Button variant="outline" disabled={pending || sent} onClick={sendReset}>{pending ? 'Sending…' : sent ? 'Link sent' : 'Email me a reset link'}</Button></div>
         </Card>
-        <div><Button variant="outline" onClick={async () => { await logout(); navigate('/login', { replace: true }) }}><LogOut className="mr-2 size-4" /> Sign out</Button></div>
+        <div><Button variant="outline" onClick={signOut}><LogOut className="mr-2 size-4" /> Sign out</Button></div>
       </div>
     </>
   )

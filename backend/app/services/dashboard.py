@@ -389,7 +389,11 @@ def portal_home(db: Session, customer: Customer, today: date | None = None) -> P
     recent = (
         db.scalars(
             select(Invoice)
-            .where(Invoice.customer_id == customer.id, Invoice.status != InvoiceStatus.DRAFT)
+            .where(
+                Invoice.customer_id == customer.id,
+                Invoice.status != InvoiceStatus.DRAFT,
+                Invoice.number.is_not(None),
+            )
             .options(*INVOICE_LOAD)
             .order_by(Invoice.id.desc())
             .limit(5)

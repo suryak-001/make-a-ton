@@ -2,7 +2,8 @@ import { type FormEvent, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Alert } from '@/components/forms'
 import { PasswordField } from '@/components/PasswordField'
-import { Button, Card } from '@/components/ui'
+import { AuthPanel } from '@/components/AuthPanel'
+import { Button } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
 import { passwordIsValid } from '@/lib/password'
 
@@ -33,31 +34,24 @@ export default function ResetPassword() {
   const fields = error?.fields ?? {}
 
   return (
-    <Card className="p-6">
-      <h1 className="text-lg font-semibold">Choose a new password</h1>
+    <AuthPanel eyebrow="Password help" title="Choose a new password." footer={<Link to="/login" className="text-muted hover:underline">Back to sign in</Link>}>
       {!token ? (
-        <div className="mt-4 grid gap-3">
+        <>
           <Alert>This link is missing its token. Open the link from your email again, or request a new one.</Alert>
-          <Link to="/forgot-password" className="text-sm hover:underline">
-            Request a new link
-          </Link>
-        </div>
+          <Link to="/forgot-password" className="text-sm hover:underline">Request a new link</Link>
+        </>
       ) : done ? (
-        <div className="mt-4 grid gap-3">
+        <>
           <Alert kind="success">Your password has been changed.</Alert>
-          <Link to="/login" className="text-sm font-medium hover:underline">
-            Sign in
-          </Link>
-        </div>
+          <Link to="/login" className="text-sm font-medium hover:underline">Sign in</Link>
+        </>
       ) : (
-        <form onSubmit={onSubmit} className="mt-4 grid gap-4">
+        <form onSubmit={onSubmit} className="grid gap-4">
           <PasswordField id="password" label="New password" value={password} onChange={setPassword} confirm={confirm} onConfirm={setConfirm} error={fields.password} />
           {error && !fields.password && (
             <>
               <Alert>{error.message}</Alert>
-              <Link to="/forgot-password" className="text-sm hover:underline">
-                Request a new link
-              </Link>
+              <Link to="/forgot-password" className="text-sm hover:underline">Request a new link</Link>
             </>
           )}
           <Button type="submit" disabled={pending}>
@@ -65,6 +59,6 @@ export default function ResetPassword() {
           </Button>
         </form>
       )}
-    </Card>
+    </AuthPanel>
   )
 }

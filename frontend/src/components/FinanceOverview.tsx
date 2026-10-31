@@ -113,7 +113,7 @@ export function FinanceOverview({ filters = {} }: { filters?: ReportFilters }) {
           <span className="absolute right-5 top-5 size-5 rotate-45 bg-yellow" />
           <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-paper/70">Overdue</p>
           <p className="mt-8 text-[25px] font-medium tracking-[-0.04em]">{summary.data ? money(summary.data.overdue_amount) : '—'}</p>
-          <p className="mt-2 text-[11px] text-paper/70">{summary.data?.overdue_count ?? 0} invoices need attention</p>
+          <p className="mt-2 text-[11px] text-paper/70">{(() => { const n = summary.data?.overdue_count ?? 0; return `${n} invoice${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} attention` })()}</p>
         </Card>
       </div>
     </div>

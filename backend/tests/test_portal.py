@@ -162,3 +162,15 @@ def test_a_customer_login_without_a_customer_record_sees_nothing(client, users, 
     }
     assert client.get(f"/api/portal-subscriptions/{sub['id']}").status_code == 404
     assert act(client, sub["id"], "PAUSED").status_code == 404
+
+
+def test_a_draft_cancelled_before_confirming_never_shows_to_the_customer(client, users, catalog, login):
+    """Only invoices that were confirmed (they have a number) are the customer's business."""
+    staff_make(client, login, catalog)
+    login("staff@t.test")
+    client.post("/api/invoices/run-billing", json={"as_of": str(TODAY + timedelta(days=40))})
+    draft = next(i for i in client.get("/api/invoices").json()["items"] if i["status"] == "DRAFT")
+    assert client.post(f"/api/invoices/{draft['id']}/cancel").json()["status"] == "CANCELLED"
+    portal(client, login)
+    assert draft["id"] not in [i["id"] for i in client.get("/api/portal-invoices").json()["items"]]
+    assert client.get(f"/api/portal-invoices/{draft['id']}").status_code == 404

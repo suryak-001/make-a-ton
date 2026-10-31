@@ -33,7 +33,7 @@ function TaxEditor({ tax }: { tax?: TaxRule }) {
     clearError()
     save.mutate({ id: tax?.id, body: { name: draft.name, kind: draft.kind, rate: draft.rate || '0', active: draft.active } })
   }
-  const askToDelete = () => confirm(`Delete ${tax?.name}?`) && remove.mutate(tax!.id)
+  const askToDelete = () => remove.mutate(tax!.id)
 
   const fields = error?.fields ?? {}
   const message = generalMessage(error, FIELDS)
@@ -59,7 +59,7 @@ function TaxEditor({ tax }: { tax?: TaxRule }) {
           <Checkbox label="Active" hint="Inactive taxes stop applying to new and re-saved quotes. Existing lines keep their amounts." checked={draft.active} onChange={(e) => set('active', e.target.checked)} />
         </Card>
         {message && <Alert>{message}</Alert>}
-        <FormActions cancelTo="/taxes" saving={save.isPending} saveLabel="Save tax" onDelete={tax && askToDelete} deleteLabel="Delete tax" />
+        <FormActions cancelTo="/taxes" saving={save.isPending} saveLabel="Save tax" onDelete={tax && askToDelete} deleteLabel="Delete tax" deleteName={tax?.name} />
       </form>
     </>
   )

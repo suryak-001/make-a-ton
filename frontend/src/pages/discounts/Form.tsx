@@ -36,7 +36,7 @@ function DiscountEditor({ discount }: { discount?: Discount }) {
     clearError()
     save.mutate({ id: discount?.id, body: discountToBody(draft) })
   }
-  const askToDelete = () => confirm(`Delete ${discount?.name}?`) && remove.mutate(discount!.id)
+  const askToDelete = () => remove.mutate(discount!.id)
 
   const f = error?.fields ?? {}
   const message = generalMessage(error, FIELDS)
@@ -100,7 +100,7 @@ function DiscountEditor({ discount }: { discount?: Discount }) {
         </Card>
 
         {message && <Alert>{message}</Alert>}
-        <FormActions cancelTo="/discounts" saving={save.isPending} saveLabel="Save discount" onDelete={discount && askToDelete} deleteLabel="Delete discount" />
+        <FormActions cancelTo="/discounts" saving={save.isPending} saveLabel="Save discount" onDelete={discount && askToDelete} deleteLabel="Delete discount" deleteName={discount?.name} />
       </form>
     </>
   )

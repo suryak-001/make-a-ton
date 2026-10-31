@@ -1,3 +1,4 @@
+import { useAuth } from '@/auth/context'
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { Link, useNavigate } from 'react-router'
@@ -19,6 +20,7 @@ const PERIOD = { DAILY: 'day', WEEKLY: 'week', MONTHLY: 'month', YEARLY: 'year' 
 
 /** The customer's first screen: what needs attention, what they owe and when, and their plans with the actions the plan allows. */
 export default function PortalHomePage() {
+  const { user } = useAuth()
   const navigate = useNavigate()
   // The key starts with the portal-subscriptions path so pausing or renewing here refreshes this screen too.
   const home = useQuery({ queryKey: ['/portal-subscriptions', 'home'], queryFn: () => api.get<PortalHome>('/dashboard/portal') })
@@ -27,7 +29,7 @@ export default function PortalHomePage() {
   if (!data) return <><PageHeader title="Home" /><p className="text-sm text-danger">We couldn’t load your account. Try again in a moment.</p></>
 
   return <div className="grid gap-6">
-    <PageHeader title={`Hello, ${data.name}`} description="Your plans, what you owe, and what is coming up." />
+    <PageHeader title={`Hello, ${user?.name.split(' ')[0] ?? data.name}`} description={`${data.name} · your plans, what you owe, and what is coming up.`} />
 
     <div className="grid gap-2">
       {data.alerts.map((alert) => {
