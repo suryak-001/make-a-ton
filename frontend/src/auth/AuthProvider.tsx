@@ -21,12 +21,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (user) => qc.setQueryData(['me'], user),
   })
 
+  const signupMutation = useMutation({
+    mutationFn: (v: { name: string; email: string; password: string }) => api.post<User>('/auth/signup', v),
+    onSuccess: (user) => qc.setQueryData(['me'], user),
+  })
+
   return (
     <AuthContext.Provider
       value={{
         user: me.data ?? null,
         loading: me.isPending,
         login: (email, password) => loginMutation.mutateAsync({ email, password }),
+        signup: (name, email, password) => signupMutation.mutateAsync({ name, email, password }),
         logout: async () => {
           await api.post('/auth/logout')
           qc.clear() // never keep another user's cached data around

@@ -1,8 +1,11 @@
 """Owner: A — password policy/hashing and signed session cookies."""
 
+import hashlib
 import re
+import secrets
 
 import bcrypt
+from fastapi import Response
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from app.config import settings
@@ -47,3 +50,25 @@ def read_session(token: str | None) -> int | None:
         return _serializer.loads(token, max_age=settings.session_max_age_seconds)
     except BadSignature:
         return None
+
+
+def set_session_cookie(response: Response, user_id: int) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        sign_session(user_id),
+        max_age=settings.session_max_age_seconds,
+        httponly=True,
+        samesite="lax",
+        secure=settings.cookie_secure,
+        path="/",
+    )
+
+
+def new_reset_token() -> tuple[str, str]:
+    """(token to email, sha256 to store). Only the hash is kept, so a leaked DB can't reset passwords."""
+    token = secrets.token_urlsafe(32)
+    return token, hash_reset_token(token)
+
+
+def hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()

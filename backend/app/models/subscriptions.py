@@ -2,13 +2,16 @@
 
 from datetime import date
 
-from sqlalchemy import Column, Enum, ForeignKey, Index, Table
+from sqlalchemy import Column, Enum, ForeignKey, Index, Table, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.enums import SubscriptionStatus
 from app.models.base import Base, Money, Timestamp, utcnow
 from app.models.catalog import Plan, Product, ProductVariant
 from app.models.identity import Customer, User
+
+# One Enum object shared by every column that stores a subscription status.
+SubscriptionStatusType = Enum(SubscriptionStatus, name="subscription_status")
 
 subscription_line_taxes = Table(
     "subscription_line_tax",
@@ -31,11 +34,13 @@ class Subscription(Base):
     customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"))
     plan_id: Mapped[int] = mapped_column(ForeignKey("plan.id"))
     status: Mapped[SubscriptionStatus] = mapped_column(
-        Enum(SubscriptionStatus, name="subscription_status"), default=SubscriptionStatus.DRAFT
+        SubscriptionStatusType, default=SubscriptionStatus.DRAFT
     )
     start_date: Mapped[date]
     expiry_date: Mapped[date | None]
     payment_term_days: Mapped[int] = mapped_column(default=15)
+    # How long a quote stays valid, counted from the day it is SENT (Draft -> Quotation).
+    validity_days: Mapped[int] = mapped_column(default=30, server_default=text("30"))
     quotation_valid_until: Mapped[date | None]
     # Set when the subscription becomes ACTIVE; advanced by the billing run (B).
     next_invoice_date: Mapped[date | None]
@@ -49,6 +54,9 @@ class Subscription(Base):
     created_by: Mapped[User | None] = relationship()
     lines: Mapped[list["SubscriptionLine"]] = relationship(
         back_populates="subscription", cascade="all, delete-orphan"
+    )
+    events: Mapped[list["SubscriptionEvent"]] = relationship(
+        back_populates="subscription", cascade="all, delete-orphan", order_by="SubscriptionEvent.id"
     )
 
 
@@ -68,3 +76,22 @@ class SubscriptionLine(Base):
     product: Mapped[Product] = relationship()
     variant: Mapped[ProductVariant | None] = relationship()
     taxes: Mapped[list["Tax"]] = relationship(secondary=subscription_line_taxes)  # noqa: F821
+
+
+class SubscriptionEvent(Base):
+    """State history: one row per status change (and one for creation, with from_status NULL).
+    Renewals are recorded as from == to with the reason. actor_id is NULL for the lifecycle job."""
+
+    __tablename__ = "subscription_event"
+    __table_args__ = (Index("ix_subscription_event_subscription_id", "subscription_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    subscription_id: Mapped[int] = mapped_column(ForeignKey("subscription.id", ondelete="CASCADE"))
+    from_status: Mapped[SubscriptionStatus | None] = mapped_column(SubscriptionStatusType)
+    to_status: Mapped[SubscriptionStatus] = mapped_column(SubscriptionStatusType)
+    reason: Mapped[str | None]
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[Timestamp] = mapped_column(default=utcnow)
+
+    subscription: Mapped[Subscription] = relationship(back_populates="events")
+    actor: Mapped[User | None] = relationship()

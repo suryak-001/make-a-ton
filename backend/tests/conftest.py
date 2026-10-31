@@ -32,7 +32,7 @@ def db():
     """Each test runs in a transaction that is rolled back, so tests never see each other's data."""
     conn = engine.connect()
     outer = conn.begin()
-    session = Session(bind=conn, join_transaction_mode="create_savepoint", expire_on_commit=False)
+    session = Session(bind=conn, join_transaction_mode="create_savepoint")
     yield session
     session.close()
     outer.rollback()
@@ -58,5 +58,79 @@ def users(db):
     db.add_all(made.values())
     db.flush()
     db.add(Customer(name="Cust Co", email="cust@t.test", user_id=made["customer"].id))
-    db.flush()
+    db.commit()  # commit (not flush) so a later rollback inside a request can't undo the fixture
     return made
+
+
+@pytest.fixture()
+def login(client):
+    """login("staff@t.test") signs the test client in and returns the response."""
+
+    def _login(email: str, password: str = "Passw0rd!x"):
+        return client.post("/api/auth/login", json={"email": email, "password": password})
+
+    return _login
+
+
+@pytest.fixture()
+def catalog(db, users):
+    """A product (Odoo variant +560, 18% tax), three plans and the customer linked to cust@t.test."""
+    from datetime import date, timedelta
+    from types import SimpleNamespace
+
+    from sqlalchemy import select
+
+    from app.enums import AmountKind, BillingPeriod
+    from app.models import Plan, Product, ProductVariant, Tax
+
+    gst = Tax(name="GST 18%", kind=AmountKind.PERCENT, rate=18)
+    odoo = ProductVariant(attribute="Brand", value="Odoo", extra_price=560)
+    standard = ProductVariant(attribute="Brand", value="Standard", extra_price=0)
+    crm = Product(
+        name="CRM", sales_price=1000, cost_price=200, default_taxes=[gst], variants=[standard, odoo]
+    )
+    other = Product(
+        name="Other", sales_price=50, variants=[ProductVariant(attribute="Size", value="XL", extra_price=5)]
+    )
+    # Everything allowed.
+    monthly = Plan(
+        name="Monthly",
+        price=0,
+        billing_period=BillingPeriod.MONTHLY,
+        pausable=True,
+        closable=True,
+        renewable=True,
+    )
+    # Nothing allowed: no pause, no early close, no renewal; auto-closes; each line needs 5+.
+    strict = Plan(
+        name="Strict yearly",
+        price=0,
+        billing_period=BillingPeriod.YEARLY,
+        min_quantity=5,
+        pausable=False,
+        closable=False,
+        renewable=False,
+        auto_close=True,
+    )
+    ended = Plan(
+        name="Ended",
+        price=0,
+        billing_period=BillingPeriod.MONTHLY,
+        available_to=date.today() - timedelta(days=1),
+    )
+    db.add_all([gst, crm, other, monthly, strict, ended])
+    db.commit()
+    from app.models import Customer
+
+    customer = db.scalar(select(Customer).where(Customer.email == "cust@t.test"))
+    return SimpleNamespace(
+        gst=gst,
+        crm=crm,
+        other=other,
+        odoo=odoo,
+        standard=standard,
+        monthly=monthly,
+        strict=strict,
+        ended=ended,
+        customer=customer,
+    )

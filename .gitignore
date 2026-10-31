@@ -16,3 +16,6 @@ __pycache__/
 node_modules/
 dist/
 *.local
+
+# folders made for sharing outside git (AirDrop etc.)
+share/

@@ -5,7 +5,7 @@ from app.models.catalog import Plan, Product, ProductVariant, QuotationTemplate,
 from app.models.identity import Customer, PasswordResetToken, User
 from app.models.rules import Discount, Tax
 from app.models.sequence import Sequence
-from app.models.subscriptions import Subscription, SubscriptionLine
+from app.models.subscriptions import Subscription, SubscriptionEvent, SubscriptionLine
 
 __all__ = [
     "Base",
@@ -23,6 +23,7 @@ __all__ = [
     "QuotationTemplateLine",
     "Sequence",
     "Subscription",
+    "SubscriptionEvent",
     "SubscriptionLine",
     "Tax",
     "User",

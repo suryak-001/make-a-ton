@@ -1,0 +1,61 @@
+import { type FormEvent, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+import { homeFor, useAuth } from '@/auth/context'
+import { Alert, FormField, Input } from '@/components/forms'
+import { PasswordField } from '@/components/PasswordField'
+import { Button, Card } from '@/components/ui'
+import { ApiError } from '@/lib/api'
+import { passwordIsValid } from '@/lib/password'
+
+export default function Signup() {
+  const { signup } = useAuth()
+  const navigate = useNavigate()
+  const [error, setError] = useState<ApiError>()
+  const [pending, setPending] = useState(false)
+  const [password, setPassword] = useState('')
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget)
+    setError(undefined)
+    if (!passwordIsValid(password)) return setError(new ApiError(422, 'Password too weak.', { password: 'Your password doesn’t meet all the rules below.' }))
+    setPending(true)
+    try {
+      const user = await signup(String(f.get('name')), String(f.get('email')), password)
+      navigate(homeFor(user.role), { replace: true })
+    } catch (err) {
+      setError(err instanceof ApiError ? err : new ApiError(0, 'Could not create the account. Try again.'))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const fields = error?.fields ?? {}
+  const unmapped = error && Object.keys(fields).length === 0
+
+  return (
+    <Card className="p-6">
+      <h1 className="text-lg font-semibold">Create your account</h1>
+      <p className="mb-4 text-sm text-muted">Manage your subscriptions and invoices in one place.</p>
+      <form onSubmit={onSubmit} className="grid gap-4" noValidate>
+        <FormField label="Name" htmlFor="name" error={fields.name}>
+          <Input id="name" name="name" autoComplete="name" required error={!!fields.name} />
+        </FormField>
+        <FormField label="Email" htmlFor="email" error={fields.email}>
+          <Input id="email" name="email" type="email" autoComplete="email" required error={!!fields.email} />
+        </FormField>
+        <PasswordField id="password" value={password} onChange={setPassword} error={fields.password} />
+        {unmapped && <Alert>{error.message}</Alert>}
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Creating account…' : 'Create account'}
+        </Button>
+      </form>
+      <p className="mt-4 text-center text-sm text-muted">
+        Already have an account?{' '}
+        <Link to="/login" className="text-ink hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </Card>
+  )
+}
