@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router'
 import { AuthProvider } from '@/auth/AuthProvider'
 import { ApiError } from '@/lib/api'
 import { router } from '@/routes'
+import { ToastProvider } from '@/components/Toast'
 import './index.css'
 
 // Don't retry errors that can't succeed on a second try (404 not found, 403, 409…): show them straight away.
@@ -16,7 +17,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <RouterProvider router={router} />
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

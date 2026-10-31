@@ -1,4 +1,4 @@
-"""Owner: A — subscriptions and their lines."""
+"""Owner: B — subscriptions and their lines."""
 
 from datetime import date
 

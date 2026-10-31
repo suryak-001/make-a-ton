@@ -1,4 +1,4 @@
-"""Owner: A — users, password reset tokens, customers."""
+"""Owner: B — users, password reset tokens, customers."""
 
 from sqlalchemy import Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship

@@ -8,8 +8,8 @@ import { Card } from './ui'
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
-      <dd className="mt-0.5 text-sm">{children}</dd>
+      <dt className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted">{label}</dt>
+      <dd className="mt-1 text-[13px]">{children}</dd>
     </div>
   )
 }
@@ -27,9 +27,9 @@ export function SubscriptionView({ sub, actions, staff = false }: { sub: PortalS
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">{sub.number}</h2>
+        <h2 className="text-[18px] font-medium tracking-[-0.025em]">{sub.number}</h2>
         <StatusBadge status={sub.status} />
-        <span className="text-sm text-muted">
+        <span className="text-[12px] text-muted">
           {sub.customer.name} · {sub.plan.name} ({PERIOD_LABEL[sub.plan.billing_period]})
         </span>
       </div>
@@ -50,8 +50,8 @@ export function SubscriptionView({ sub, actions, staff = false }: { sub: PortalS
       </Card>
 
       <Card className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
+        <table className="w-full text-left text-[13px] tabular-nums">
+          <thead className="border-b border-ink bg-surface text-[10px] uppercase tracking-[0.1em] text-muted">
             <tr>
               <th className="px-4 py-2.5 font-medium">Product</th>
               <th className="px-4 py-2.5 text-right font-medium">Qty</th>

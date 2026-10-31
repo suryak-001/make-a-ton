@@ -1,4 +1,4 @@
-"""Owner: A. Contract used by everyone: CurrentUser, require_roles(), Db.
+"""Owner: B. Contract used by everyone: CurrentUser, require_roles(), Db.
 
 Authorize close to the data: put `Depends(require_roles(...))` on every route that touches data.
 Customers must only ever see their own records: scope queries with `user.customer.id`.

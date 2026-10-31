@@ -1,4 +1,4 @@
-"""Owner: A — admin-only user management. Only the admin can add a member of staff."""
+"""Owner: B — admin-only user management. Only the admin can add a member of staff."""
 
 from fastapi import APIRouter, status
 from sqlalchemy import or_, select

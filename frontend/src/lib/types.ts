@@ -145,3 +145,80 @@ export type Template = {
 }
 
 export type PricePreview = { unit_price: string; subtotal: string; discount_amount: string; tax_amount: string; total: string }
+
+export type InvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'PAID' | 'CANCELLED'
+export type InvoiceLine = {
+  id: number
+  product_id: number | null
+  description: string
+  quantity: number
+  unit_price: string
+  discount_amount: string
+  tax_rate: string
+  tax_amount: string
+  total: string
+}
+export type Invoice = {
+  id: number
+  number: string | null
+  status: InvoiceStatus
+  subscription: { id: number; number: string }
+  customer: { id: number; name: string; email: string }
+  period_start: string
+  period_end: string
+  invoice_date: string
+  due_date: string
+  subtotal: string
+  discount_total: string
+  tax_total: string
+  total: string
+  amount_paid: string
+  outstanding: string
+  overdue: boolean
+  sent_at: string | null
+  created_at: string
+  lines: InvoiceLine[]
+}
+
+export type Discount = {
+  id: number
+  name: string
+  kind: 'PERCENT' | 'FIXED'
+  value: string
+  min_purchase: string | null
+  min_quantity: number | null
+  start_date: string
+  end_date: string | null
+  usage_limit: number | null
+  used_count: number
+  scope: 'PRODUCT' | 'SUBSCRIPTION'
+  active: boolean
+  product_ids: number[]
+  subscription_ids: number[]
+  created_at: string
+}
+
+export type Payment = {
+  id: number
+  invoice_id: number
+  invoice_number: string | null
+  customer_name: string
+  method: 'CASH' | 'BANK_TRANSFER' | 'CARD' | 'UPI' | 'CHEQUE' | 'OTHER'
+  amount: string
+  payment_date: string
+  note: string | null
+  recorded_by: string | null
+  created_at: string
+}
+
+export type Summary = {
+  active_subscriptions: number
+  mrr: string
+  invoiced: string
+  collected: string
+  outstanding: string
+  overdue_count: number
+  overdue_amount: string
+}
+
+export type RevenuePoint = { month: string; invoiced: string; collected: string }

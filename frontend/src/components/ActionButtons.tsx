@@ -6,6 +6,7 @@ import type { PortalSubscription } from '@/lib/types'
 import { Alert, FormField, Textarea } from './forms'
 import { Modal } from './Modal'
 import { Button } from './ui'
+import { useToast } from './Toast'
 
 /**
  * One button per action the SERVER says is allowed right now (plan flags and status already applied).
@@ -13,6 +14,7 @@ import { Button } from './ui'
  */
 export function ActionButtons({ sub, base }: { sub: PortalSubscription; base: '/subscriptions' | '/portal-subscriptions' }) {
   const qc = useQueryClient()
+  const { toast } = useToast()
   const [asking, setAsking] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string>()
@@ -22,10 +24,24 @@ export function ActionButtons({ sub, base }: { sub: PortalSubscription; base: '/
       action === 'RENEW'
         ? api.post(`${base}/${sub.id}/renew`, { reason })
         : api.post(`${base}/${sub.id}/transition`, { to: action, reason }),
-    onSuccess: () => {
+    onSuccess: (_value, variables) => {
       setAsking(null)
       setReason('')
       qc.invalidateQueries({ queryKey: [base] })
+      if (variables.action === 'PAUSED') {
+        toast({
+          message: `${sub.number} paused`,
+          actionLabel: 'Undo',
+          onAction: () => {
+            void api.post(`${base}/${sub.id}/transition`, { to: 'ACTIVE', reason: 'Pause undone' }).then(() => {
+              qc.invalidateQueries({ queryKey: [base] })
+              toast(`${sub.number} resumed`)
+            }).catch(() => toast('Could not undo the pause'))
+          },
+        })
+      } else {
+        toast(`${actionInfo(sub.status, variables.action).label} complete`)
+      }
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : 'That didn’t work. Try again.'),
   })
@@ -62,20 +78,19 @@ export function ActionButtons({ sub, base }: { sub: PortalSubscription; base: '/
         </div>
       )}
 
-      <Modal open={asking !== null} onClose={() => setAsking(null)} title={dialog ? `${dialog.label} ${sub.number}?` : ''}>
+      <Modal open={asking !== null} onClose={() => setAsking(null)} title={dialog ? `${dialog.label} ${sub.number}?` : ''} status={dialog?.danger ? 'Irreversible' : 'Reversible'} description={dialog?.help}>
         {asking && dialog && (
           <div className="grid gap-4">
-            {dialog.help && <p className="text-sm text-muted">{dialog.help}</p>}
             <FormField label="Reason (optional)" htmlFor="reason">
               <Textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
             </FormField>
             {error && <Alert>{error}</Alert>}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAsking(null)}>
+            <div className="grid grid-cols-2 gap-2 border-t border-line pt-4">
+              <Button className="w-full" variant="outline" onClick={() => setAsking(null)}>
                 Not now
               </Button>
               <Button
-                className={dialog.danger ? 'bg-danger text-white hover:opacity-90' : undefined}
+                className={dialog.danger ? 'w-full border-danger bg-danger text-white' : 'w-full'}
                 disabled={run.isPending}
                 onClick={() => submit(asking, reason)}
               >

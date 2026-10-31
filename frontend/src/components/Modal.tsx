@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 
 /** Native <dialog>: focus trap, Esc to close and backdrop come from the browser. */
-export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Modal({ open, onClose, title, status, description, children }: { open: boolean; onClose: () => void; title: string; status?: string; description?: string; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const el = ref.current
@@ -9,18 +9,32 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
     if (open && !el.open) el.showModal()
     if (!open && el.open) el.close()
   }, [open])
+  useEffect(() => {
+    if (!open) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previous }
+  }, [open])
 
   return (
     <dialog
       ref={ref}
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
-      className="m-auto w-full max-w-lg rounded-xl border border-line p-0 backdrop:bg-black/40"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg border border-ink bg-paper p-0 shadow-[7px_7px_0_#171713]"
     >
       {open && (
-        <div className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">{title}</h2>
-          {children}
+        <div className="page-enter">
+          <header className="flex items-start gap-4 border-b border-ink px-5 py-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-brand">Workspace action</p>
+              <h2 className="mt-1 text-[18px] font-medium tracking-[-0.02em]">{title}</h2>
+              {description && <p className="mt-1 text-[12px] text-muted">{description}</p>}
+            </div>
+            <span className="border border-green/30 bg-green/10 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-green">{status ?? 'Ready'}</span>
+            <button type="button" onClick={onClose} aria-label="Close modal" className="grid size-8 place-items-center border border-ink bg-paper text-lg hover:bg-yellow">×</button>
+          </header>
+          <div className="p-5">{children}</div>
         </div>
       )}
     </dialog>

@@ -1,4 +1,4 @@
-"""Owner: A — products and their variants. Staff can read; only the admin can change them."""
+"""Owner: B — products and their variants. Staff can read; only the admin can change them."""
 
 from fastapi import APIRouter, status
 from sqlalchemy import select

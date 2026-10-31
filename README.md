@@ -51,7 +51,8 @@ Emails (password reset, invoices) are printed to the backend console unless `SMT
 | backend | `uv run ruff check . && uv run ruff format .` | Lint and format |
 | backend | `uv run alembic revision --autogenerate -m "what changed"` | New migration after editing `app/models` |
 | backend | `uv run alembic upgrade head` | Apply migrations |
-| backend | `uv run python -m app.seed` | Reset demo data |
+| backend | `uv run python -m app.seed` | Reset demo data, invoices and payments |
+| backend | `uv run python -m app.seed --big` | Seed 5,000 subscriptions for performance checks |
 | frontend | `npm run build` | Type check and production build |
 | frontend | `npm run lint` | oxlint |
 
@@ -59,9 +60,9 @@ Emails (password reset, invoices) are printed to the backend console unless `SMT
 
 ```
 backend/app/models/         full data model (SHARED: ping your teammate before editing)
-backend/app/core/           password policy, session cookie, get_current_user, require_roles   [A]
-backend/app/routers/        one file per module: auth works, the rest are empty stubs
-backend/app/services/       pricing (done, tested) · billing/discounts (stubs, B) · subscriptions (stubs, A)
+backend/app/core/           password policy, session cookie, current user and role guards
+backend/app/routers/        complete APIs for identity, selling, billing, reports and both portals
+backend/app/services/       pricing, subscriptions, billing, discounts, invoices and view builders
 backend/app/services/sequence.py   atomic SUB-/INV- numbering
 backend/app/seed.py         demo data (section A / section B)
 frontend/src/nav.ts         sidebar menu, role visibility, owner + checklist per page
@@ -70,7 +71,7 @@ frontend/src/auth/          session state and the role route guard
 frontend/src/lib/api.ts     fetch wrapper (cookies, errors)
 ```
 
-Every page not built yet shows its PLAN.md checklist and owner. To build one, create `frontend/src/pages/<route>/index.tsx` with a default export (e.g. `src/pages/subscriptions/index.tsx`) and it replaces the placeholder automatically. Then implement the matching router in `backend/app/routers/`.
+Pages are auto-registered from `frontend/src/pages/<route>/index.tsx`; nested detail and form routes live beside each page.
 
 ## Conventions
 

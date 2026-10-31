@@ -6,6 +6,7 @@ import { Alert } from '@/components/forms'
 import { SubscriptionView } from '@/components/SubscriptionView'
 import { buttonClass } from '@/components/button-class'
 import { Button, PageHeader } from '@/components/ui'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { api, ApiError } from '@/lib/api'
 import type { Subscription } from '@/lib/types'
 
@@ -14,6 +15,7 @@ export default function SubscriptionDetail() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [error, setError] = useState<string>()
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const sub = useQuery({ queryKey: ['/subscriptions', Number(id)], queryFn: () => api.get<Subscription>(`/subscriptions/${id}`) })
   const remove = useMutation({
@@ -54,7 +56,7 @@ export default function SubscriptionDetail() {
                     </Link>
                   )}
                   {sub.data.status === 'DRAFT' && (
-                    <Button variant="ghost" className="text-danger" disabled={remove.isPending} onClick={() => confirm(`Delete draft ${sub.data.number}?`) && remove.mutate()}>
+                    <Button variant="ghost" className="text-danger" disabled={remove.isPending} onClick={() => setConfirmDelete(true)}>
                       Delete draft
                     </Button>
                   )}
@@ -65,6 +67,7 @@ export default function SubscriptionDetail() {
           {error && <Alert>{error}</Alert>}
         </div>
       )}
+      <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} onConfirm={() => remove.mutate()} pending={remove.isPending} title="Delete this draft?" confirmLabel="Delete draft">The draft and its unsent line items will be permanently removed.</ConfirmDialog>
     </>
   )
 }

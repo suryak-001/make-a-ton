@@ -1,4 +1,4 @@
-"""Owner: A — password policy/hashing and signed session cookies."""
+"""Owner: B — password policy/hashing and signed session cookies."""
 
 import hashlib
 import re
