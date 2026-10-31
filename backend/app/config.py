@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # set true behind HTTPS
     frontend_url: str = "http://localhost:5173"
 
+    # The daily jobs (billing, then the lifecycle job) run inside the server at this time, server clock.
+    scheduler_enabled: bool = True
+    scheduler_hour: int = 2
+    scheduler_minute: int = 0
+    scheduler_run_on_start: bool = False  # also run once shortly after the server starts, to catch up
+
     # Leave smtp_host empty in dev to print emails to the server console.
     smtp_host: str = ""
     smtp_port: int = 587

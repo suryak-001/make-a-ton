@@ -1,5 +1,10 @@
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
+
 from fastapi import FastAPI
 
+from app.config import settings
 from app.core.errors import register_error_handlers
 from app.routers import (
     auth,
@@ -19,7 +24,20 @@ from app.routers import (
     users,
 )
 
-app = FastAPI(title="Brightloop Subscriptions API")
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Starts the daily billing and lifecycle jobs with the server (SCHEDULER_ENABLED=false turns them off)."""
+    from app.services.scheduler import scheduler_loop
+
+    task = asyncio.create_task(scheduler_loop()) if settings.scheduler_enabled else None
+    yield
+    if task is not None:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
+app = FastAPI(title="Brightloop Subscriptions API", lifespan=lifespan)
 register_error_handlers(app)
 
 for module in (

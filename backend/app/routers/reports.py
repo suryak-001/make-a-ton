@@ -1,5 +1,6 @@
 """Database-side financial aggregates for the dashboard and reports. Every number is a SQL aggregate
-(`func.sum`, `func.count`, `group_by`), never a loop over rows."""
+(`func.sum`, `func.count`, `group_by`), never a loop over all rows. The one exception is the discount
+adjustment to MRR, which looks only at the few subscriptions a discount touches."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -8,11 +9,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import ColumnElement, Numeric, Select, case, cast, func, select
+from sqlalchemy.orm import selectinload
 
 from app.core.deps import Db, StaffUser
-from app.enums import BillingPeriod, InvoiceStatus, SubscriptionStatus
+from app.enums import BillingPeriod, DiscountScope, InvoiceStatus, SubscriptionStatus
 from app.models import Invoice, Payment, Plan, Subscription, SubscriptionLine
 from app.schemas.money import InvoiceOut, RevenuePoint, SummaryOut
+from app.services.billing import discount_reduction
+from app.services.discounts import discount_applies, open_discounts
 from app.services.invoice_queries import overdue_conditions, present_conditions
 from app.services.money_views import INVOICE_LOAD, invoice_out
 
@@ -23,10 +27,14 @@ OVERDUE_LIST_LIMIT = 100
 MONTHS_SHOWN = 12
 
 # How many billing periods fit in a month (MRR is monthly-equivalent).
+PERIODS_IN_A_MONTH = {
+    BillingPeriod.DAILY: Decimal("30"),
+    BillingPeriod.WEEKLY: Decimal("4.345"),
+    BillingPeriod.MONTHLY: Decimal("1"),
+    BillingPeriod.YEARLY: Decimal("0.083333"),
+}
 PERIODS_PER_MONTH = case(
-    (Plan.billing_period == BillingPeriod.DAILY, Decimal("30")),
-    (Plan.billing_period == BillingPeriod.WEEKLY, Decimal("4.345")),
-    (Plan.billing_period == BillingPeriod.YEARLY, Decimal("0.083333")),
+    *((Plan.billing_period == period, factor) for period, factor in PERIODS_IN_A_MONTH.items()),
     else_=Decimal("1"),
 )
 
@@ -124,7 +132,34 @@ def _monthly_recurring_revenue(db: Db, f: ReportFilters) -> Decimal:
         .join(Plan, Plan.id == Subscription.plan_id)
         .where(Subscription.status == SubscriptionStatus.ACTIVE, *conditions)
     )
-    return db.scalar(stmt)
+    gross = db.scalar(stmt)
+    return max(gross - _discounts_worth_per_month(db, conditions), ZERO)
+
+
+def _discounts_worth_per_month(db: Db, conditions: list) -> Decimal:
+    """What the discounts that apply today take off the active subscriptions, as a monthly amount, by the
+    same rules billing uses. Only subscriptions a discount can touch are loaded."""
+    today = date.today()
+    discounts = open_discounts(db, today)
+    ids = {s.id for d in discounts if d.scope == DiscountScope.SUBSCRIPTION for s in d.subscriptions}
+    product_ids = {p.id for d in discounts if d.scope == DiscountScope.PRODUCT for p in d.products}
+    if product_ids:
+        ids |= set(db.scalars(select(SubscriptionLine.subscription_id).where(SubscriptionLine.product_id.in_(product_ids))))
+    if not ids:
+        return ZERO
+    subscriptions = list(
+        db.scalars(
+            select(Subscription)
+            .where(Subscription.id.in_(ids), Subscription.status == SubscriptionStatus.ACTIVE, *conditions)
+            .options(selectinload(Subscription.lines), selectinload(Subscription.plan))
+        )
+    )
+    worth = ZERO
+    for sub in subscriptions:
+        applicable = [d for d in discounts if discount_applies(d, sub)]
+        if applicable:
+            worth += discount_reduction(sub.lines, applicable) * PERIODS_IN_A_MONTH[sub.plan.billing_period]
+    return worth.quantize(ZERO)
 
 
 def _invoiced_and_outstanding(db: Db, f: ReportFilters) -> tuple[Decimal, Decimal]:

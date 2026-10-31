@@ -7,13 +7,13 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 
-from app.core.deps import Db, StaffUser
+from app.core.deps import AdminUser, Db, StaffUser
 from app.core.pagination import Page, Pages, paginate
 from app.enums import InvoiceStatus
 from app.models import Invoice
 from app.schemas.money import BillingRunIn, BillingRunOut, InvoiceOut
 from app.services import invoices as svc
-from app.services.billing import run_billing
+from app.services.billing import rebill_invoice, run_billing
 from app.services.invoice_queries import overdue_conditions, present_conditions
 from app.services.money_views import INVOICE_LOAD, invoice_out, load_invoice
 
@@ -68,6 +68,14 @@ def cancel(invoice_id: int, db: Db, _: StaffUser):
     svc.cancel_invoice(db, invoice_id)
     db.commit()
     return invoice_out(load_invoice(db, invoice_id))
+
+
+@router.post("/{invoice_id}/rebill", response_model=InvoiceOut, status_code=201)
+def rebill(invoice_id: int, db: Db, _: AdminUser):
+    """Bills a cancelled invoice's period again as a new Draft. Admin only; the billing run never does it."""
+    invoice = rebill_invoice(db, invoice_id)
+    db.commit()
+    return invoice_out(load_invoice(db, invoice.id))
 
 
 @router.post("/{invoice_id}/send", response_model=InvoiceOut)

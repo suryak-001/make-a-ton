@@ -3,7 +3,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Enum, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, Index, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.enums import InvoiceStatus, PaymentMethod
@@ -16,8 +16,15 @@ from app.models.subscriptions import Subscription
 class Invoice(Base):
     __tablename__ = "invoice"
     __table_args__ = (
-        # The "never bill twice" guarantee: one invoice per subscription per billing period.
-        UniqueConstraint("subscription_id", "period_start", name="uq_invoice_subscription_period"),
+        # The "never bill twice" guarantee: one live invoice per subscription per billing period. A cancelled
+        # invoice no longer holds its period, so an admin can re-bill it (services.billing.rebill_invoice).
+        Index(
+            "uq_invoice_subscription_period",
+            "subscription_id",
+            "period_start",
+            unique=True,
+            postgresql_where=text("status <> 'CANCELLED'"),
+        ),
         Index("ix_invoice_status_due_date", "status", "due_date"),
         Index("ix_invoice_customer_id", "customer_id"),
         Index("ix_invoice_invoice_date", "invoice_date"),

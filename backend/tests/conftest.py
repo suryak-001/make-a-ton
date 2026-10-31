@@ -5,6 +5,8 @@ os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://localhost:5432/brightloop_test"
 )
 
+os.environ["SCHEDULER_ENABLED"] = "false"  # tests call the daily jobs directly
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402

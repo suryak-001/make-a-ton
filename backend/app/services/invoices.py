@@ -39,7 +39,8 @@ def allowed_actions(invoice: Invoice) -> list[str]:
         return ["pay", "send", "print", *(["cancel"] if unpaid else [])]
     if invoice.status == InvoiceStatus.PAID:
         return ["send", "print"]
-    return []
+    # Cancelled: the period can be billed again, by an admin (the route enforces that; the screen hides it).
+    return ["rebill"]
 
 
 def _require(invoice: Invoice, action: str) -> None:

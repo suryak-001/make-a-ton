@@ -1,18 +1,22 @@
-"""Owner: A (steps A3, A4). Contract: never two invoices for the same (subscription_id, period_start),
-enforced by the DB unique constraint; on IntegrityError, roll back and return the existing invoice."""
+"""Owner: A (steps A3, A4). Contract: never two live invoices for the same (subscription_id, period_start),
+enforced by the DB unique index (cancelled invoices don't count); on IntegrityError, roll back and return the
+existing invoice."""
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
 from itertools import count, takewhile
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.errors import Invalid, NotFound
-from app.enums import AmountKind, DiscountScope, SubscriptionStatus
+from app.core.errors import Conflict, Invalid, NotFound
+from app.enums import AmountKind, DiscountScope, InvoiceStatus, SubscriptionStatus
 from app.models import Discount, DiscountUsage, Invoice, InvoiceLine, Subscription, SubscriptionLine
+
+# How many subscriptions one billing transaction handles before it commits and takes the next batch.
+BILLING_BATCH_SIZE = 200
 from app.services.dates import add_period
 from app.services.discounts import find_applicable_discounts
 from app.services.pricing import (
@@ -62,9 +66,12 @@ def generate_invoice_for_period(db: Session, subscription_id: int, period_start:
 
 
 def _find_invoice(db: Session, subscription_id: int, period_start: date) -> Invoice | None:
+    """The live invoice for a period. A cancelled one has let go of its period, so it is not found."""
     return db.scalar(
         select(Invoice).where(
-            Invoice.subscription_id == subscription_id, Invoice.period_start == period_start
+            Invoice.subscription_id == subscription_id,
+            Invoice.period_start == period_start,
+            Invoice.status != InvoiceStatus.CANCELLED,
         )
     )
 
@@ -125,11 +132,26 @@ def _claim_discounts(db: Session, sub: Subscription, period_start: date) -> Clai
     )
 
 
+def _first_of_scope(discounts: list[Discount], scope: DiscountScope) -> Discount | None:
+    return next((d for d in discounts if d.scope == scope), None)
+
+
 def _claim_first(db: Session, discounts: list[Discount], scope: DiscountScope) -> Discount | None:
-    first = next((d for d in discounts if d.scope == scope), None)
+    first = _first_of_scope(discounts, scope)
     if first is None or not _claim_one_use(db, first):
         return None
     return first
+
+
+def discount_reduction(lines: list[SubscriptionLine], discounts: list[Discount]) -> Decimal:
+    """What the next invoice would take off these lines (before tax) with these applicable discounts, by the
+    same rules as billing: at most one product discount and one subscription discount, never below zero.
+    Nothing is claimed or saved, so reports can ask what the discounts are worth today."""
+    chosen = ClaimedDiscounts(
+        product=_first_of_scope(discounts, DiscountScope.PRODUCT),
+        subscription=_first_of_scope(discounts, DiscountScope.SUBSCRIPTION),
+    )
+    return sum((result.discount_amount for _, result in _price_lines(lines, chosen)), ZERO)
 
 
 def _claim_one_use(db: Session, discount: Discount) -> bool:
@@ -242,30 +264,46 @@ class BillingRunResult:
         )
 
 
-def run_billing(db: Session, as_of: date) -> BillingRunResult:
-    """For every ACTIVE subscription with next_invoice_date <= as_of: generate one invoice per due
-    period (catch-up, so nothing is skipped) and advance next_invoice_date. Safe to run repeatedly."""
+def run_billing(db: Session, as_of: date, *, batch_size: int = BILLING_BATCH_SIZE) -> BillingRunResult:
+    """For every ACTIVE subscription with next_invoice_date <= as_of (and not past its expiry date): generate
+    one invoice per due period (catch-up, so nothing is skipped) and advance next_invoice_date. Safe to run
+    repeatedly.
+
+    Subscriptions are taken in batches, each committed on its own, so a big run never holds one huge
+    transaction or all its row locks at once. A subscription that fails stays due for the next run and is
+    left out of the rest of this one, so a bad row can't make the loop spin."""
     result = BillingRunResult(as_of=as_of)
-    for sub in _due_subscriptions(db, as_of):
-        _bill_subscription(db, sub, as_of, result)
+    failed_ids: set[int] = set()
+    while batch := _due_subscriptions(db, as_of, limit=batch_size, exclude=failed_ids):
+        for sub in batch:
+            failures_before = result.failed
+            _bill_subscription(db, sub, as_of, result)
+            if result.failed > failures_before:
+                failed_ids.add(sub.id)
+        db.commit()
     return result
 
 
-def _due_subscriptions(db: Session, as_of: date) -> list[Subscription]:
-    """Locked with skip_locked so two simultaneous runs never take the same row."""
-    return list(
-        db.scalars(
-            select(Subscription)
-            .where(
-                Subscription.status == SubscriptionStatus.ACTIVE,
-                Subscription.next_invoice_date.is_not(None),
-                Subscription.next_invoice_date <= as_of,
-            )
-            .options(selectinload(Subscription.plan))
-            .order_by(Subscription.id)
-            .with_for_update(skip_locked=True)
+def _due_subscriptions(db: Session, as_of: date, *, limit: int, exclude: set[int]) -> list[Subscription]:
+    """The next batch of due subscriptions. Locked with skip_locked so two simultaneous runs never take
+    the same row. A subscription whose next period starts after its expiry date is no longer billed
+    (renewing it moves the expiry date, and billing picks it up again)."""
+    stmt = (
+        select(Subscription)
+        .where(
+            Subscription.status == SubscriptionStatus.ACTIVE,
+            Subscription.next_invoice_date.is_not(None),
+            Subscription.next_invoice_date <= as_of,
+            or_(Subscription.expiry_date.is_(None), Subscription.next_invoice_date <= Subscription.expiry_date),
         )
+        .options(selectinload(Subscription.plan))
+        .order_by(Subscription.id)
+        .limit(limit)
+        .with_for_update(skip_locked=True)
     )
+    if exclude:
+        stmt = stmt.where(Subscription.id.not_in(exclude))
+    return list(db.scalars(stmt))
 
 
 def _bill_subscription(db: Session, sub: Subscription, as_of: date, result: BillingRunResult) -> None:
@@ -299,4 +337,30 @@ def _due_periods(sub: Subscription, as_of: date) -> list[tuple[int, date]]:
     period = sub.plan.billing_period
     first = next(i for i in count() if add_period(sub.start_date, period, i) >= sub.next_invoice_date)
     starts = ((i, add_period(sub.start_date, period, i)) for i in count(first))
-    return list(takewhile(lambda item: item[1] <= as_of, starts))
+    last_day = min(as_of, sub.expiry_date) if sub.expiry_date is not None else as_of  # nothing starts after expiry
+    return list(takewhile(lambda item: item[1] <= last_day, starts))
+
+
+# ───────────────────────────── re-billing a cancelled invoice ─────────────────────────────
+
+
+def rebill_invoice(db: Session, invoice_id: int) -> Invoice:
+    """Bills a cancelled invoice's period again, as a new Draft. The billing run never does this by itself:
+    a cancelled period stays unbilled until an admin asks. The cancelled invoice stays in the ledger, and
+    the discount uses it held move to the new invoice instead of being counted twice."""
+    old = db.scalar(select(Invoice).where(Invoice.id == invoice_id).with_for_update())
+    if old is None:
+        raise NotFound("Invoice not found.")
+    if old.status != InvoiceStatus.CANCELLED:
+        raise Conflict("Only a cancelled invoice can be billed again.")
+    if _find_invoice(db, old.subscription_id, old.period_start) is not None:
+        raise Conflict("This period has already been billed again.")
+
+    with db.begin_nested():  # release the old uses and bill again as one step, or neither
+        for usage in db.scalars(select(DiscountUsage).where(DiscountUsage.invoice_id == old.id)):
+            db.execute(
+                update(Discount).where(Discount.id == usage.discount_id).values(used_count=Discount.used_count - 1)
+            )
+            db.delete(usage)
+        db.flush()
+        return generate_invoice_for_period(db, old.subscription_id, old.period_start)
