@@ -32,20 +32,21 @@ One web app that runs a subscription business from start to finish: **catalog �
 
 ---
 
-## 2. Recommended stack (optimised for 2 people moving fast)
+## 2. Stack (Python + React)
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| App | **Next.js 16 (App Router) + TypeScript** | UI and API in one repo, server actions, one deploy |
-| DB | **PostgreSQL + Prisma 7** | Relational data, real transactions and unique constraints (needed for the no-double-billing rule) |
-| UI | **Tailwind 4 + shadcn/ui (Base UI)** + TanStack Table | Fast CRUD screens and data tables with server-side pagination |
-| Auth | Hand-rolled email/password (bcrypt) + `iron-session` | Full control of password rules, roles and reset tokens |
-| Email | **Nodemailer → Ethereal/Mailtrap** in dev, Resend in prod | Reset links and invoice emails |
-| Validation | **Zod** schemas shared by forms and server actions | One source of truth |
-| Charts | Recharts | Dashboard |
-| Hosting | Vercel + Neon/Supabase Postgres, or Docker Compose locally | |
+| API | **FastAPI** (Python 3.13, managed by `uv`) | Typed request/response models, automatic OpenAPI docs at `/docs`, dependency-based auth |
+| DB | **PostgreSQL + SQLAlchemy 2 + Alembic** | Real transactions and unique constraints (needed for the no-double-billing rule); migrations in `backend/alembic/versions` |
+| Money | `Decimal` end to end, `Numeric(12,2)` in the DB | No float rounding errors |
+| Auth | bcrypt + signed `HttpOnly` session cookie (`itsdangerous`) | Full control of password rules, roles and reset tokens |
+| Email | `smtplib`; printed to the server console in dev | Reset links and invoice emails (swap in Mailtrap or Resend later) |
+| Frontend | **React 19 + TypeScript + Vite** | Fast dev loop |
+| UI | Tailwind 4 | Small primitives in `frontend/src/components/ui.tsx` |
+| Routing / data | React Router 8 + TanStack Query | Role-guarded routes, cached server data |
+| Tests | pytest (backend), `tsc` + oxlint (frontend) | |
 
-> If your team is stronger in Python, swap in **FastAPI + SQLAlchemy + React**. The track split below stays the same.
+The browser only talks to the Vite dev server, which proxies `/api` to FastAPI. The session cookie is therefore same-origin and no CORS setup is needed.
 
 ---
 
@@ -65,77 +66,74 @@ Rough load: A has more screens, while B has the harder logic (billing engine, di
 
 ## 4. Phase 0: Together (first ~2 hours). **Do not skip.**
 
-> ✅ **Scaffolded (2026-10-31).** Skeleton, full schema plus first migration, auth with real login and logout, role guards, nav shell with placeholder pages, contract stubs, a working and tested pricing engine, and the seed are all in place. See README.md. Still to do together: review the schema, set up the deploy pipeline, push to a shared remote.
+> ✅ **Scaffolded (2026-10-31, Python + React).** Skeleton, full schema plus first Alembic migration, auth with real login and logout, role guards on both API and UI, nav shell with placeholder pages, contract stubs, a working and tested pricing engine (also exposed at `POST /api/pricing/preview`), and the seed are all in place. See README.md. Still to do together: review the schema and set up the deploy pipeline.
 
 Pair on this, because it is what makes everything after it parallel.
 
-1. **Repo skeleton**: Next.js + Tailwind + shadcn + Prisma + ESLint/Prettier, `.env.example`, Docker Compose Postgres, deploy pipeline. *(A drives, B reviews)*
-2. **Full Prisma schema** (section 7) written and migrated. Both of you agree on every enum and relation.
-3. **Shared contracts** (section 6): function signatures stubbed with `throw new Error("TODO")` or mock returns.
+1. **Repo skeleton**: FastAPI + Alembic backend, Vite + React + Tailwind frontend, `.env.example`, deploy pipeline. *(A drives, B reviews)*
+2. **Full SQLAlchemy models** (section 7) written and migrated with Alembic. Both of you agree on every enum and relation.
+3. **Shared contracts** (section 6): function signatures stubbed with `raise NotImplementedError("TODO")` or mock returns.
 4. **Layout and nav shell**: sidebar with every menu item, role-based visibility, empty pages.
 5. **Seed script skeleton**: 1 admin, 1 staff, 3 customers, a few products, plans and taxes. Each person extends their own section later.
 6. **Folder ownership** agreed (section 5). Branch-per-feature, small PRs, merge to `main` several times a day.
 
-**Exit criteria:** `npm run dev` works, the DB is migrated and seeded, everyone can log in as a hard-coded admin (stub), and all nav links resolve to placeholder pages.
+**Exit criteria:** the backend (`uvicorn`) and frontend (`npm run dev`) both start, the DB is migrated and seeded, everyone can log in as a hard-coded admin (stub), and all nav links resolve to placeholder pages.
 
 ---
 
 ## 5. Folder ownership (avoids merge conflicts)
 
 ```
-prisma/schema.prisma            SHARED: change only after pinging the other person; one migration per PR
-prisma/seed.ts                  SHARED: A edits the "catalog/subs" section, B edits the "billing" section
-src/lib/auth/*                  A  (session, requireRole, password policy, reset tokens)
-src/lib/pricing/*               B  (line/discount/tax math, used by A too)
-src/lib/billing/*               B  (invoice generation, billing run)
-src/lib/reports/*               B
-src/app/(auth)/*                A  login, signup, forgot-password, reset-password
-src/app/(app)/users             A
-src/app/(app)/customers         A
-src/app/(app)/products          A
-src/app/(app)/plans             A
-src/app/(app)/quotation-templates A
-src/app/(app)/subscriptions     A  (B adds an "Invoices" tab component via props)
-src/app/(app)/taxes             B
-src/app/(app)/discounts         B
-src/app/(app)/invoices          B
-src/app/(app)/payments          B
-src/app/(app)/reports           B  (also the dashboard home)
-src/app/portal/layout + subscriptions   A
-src/app/portal/invoices         B
-src/components/ui/*             shadcn: whoever adds a component, no edits to existing ones without asking
+backend/app/models/*.py            SHARED: change only after pinging the other person; one Alembic migration per PR
+backend/app/seed.py                SHARED: A edits the catalog/subscription sections, B edits the rules/billing sections
+backend/app/core/*                 A  (password policy, session cookie, get_current_user, require_roles)
+backend/app/routers/auth.py        A  (login/logout/me done; signup, forgot/reset password to do)
+backend/app/routers/{users,customers,products,plans,quotation_templates,subscriptions,portal_subscriptions}.py   A
+backend/app/services/subscriptions.py   A  (state machine, lifecycle job)
+backend/app/services/{pricing,billing,discounts}.py   B
+backend/app/routers/{taxes,discounts,invoices,payments,reports,pricing,portal_invoices}.py   B
+backend/app/services/{dates,sequence,mail}.py   shared helpers, tell the other before changing behaviour
+backend/tests/                     each person adds test_<feature>.py files for their own track
+frontend/src/pages/<route>/index.tsx   drop-in pages, auto-registered by routes.tsx (no routing edits)
+    A: users, customers, products, plans, quotation-templates, subscriptions, portal/subscriptions
+    B: dashboard, taxes, discounts, invoices, payments, reports, portal/invoices
+frontend/src/auth/*  frontend/src/lib/api.ts   A  (session, route guard, fetch wrapper)
+frontend/src/nav.ts                SHARED: only to add or change menu entries
+frontend/src/components/ui.tsx     shared primitives: add new ones, don't restyle existing ones without asking
 ```
 
 ---
 
 ## 6. Shared contracts (agreed in Phase 0, stubbed immediately)
 
-```ts
-// src/lib/auth — owned by A
-getSession(): Promise<{ userId: string; role: "ADMIN" | "STAFF" | "CUSTOMER"; customerId?: string } | null>
-requireRole(...roles: Role[]): Promise<Session>   // throws / redirects
-// B uses requireRole("ADMIN") on taxes/discounts from day one; A makes it real in Track A1.
+```python
+# backend/app/core/deps.py — owned by A (done)
+CurrentUser                      # FastAPI dependency: the signed-in User, or 401
+require_roles(*roles: Role)      # dependency factory: 401 if signed out, 403 if the role isn't allowed
+AdminUser, StaffUser, CustomerUser   # ready-made type aliases (StaffUser = admin or staff)
+# B puts AdminUser on taxes/discounts routes from day one.
 
-// src/lib/pricing — owned by B (pure functions, unit-tested, delivered FIRST by B)
-computeLine({ unitPrice, variantExtra, quantity, taxes, discount? }) =>
-  { subtotal, discountAmount, taxAmount, total }
-computeTotals(lines) => { subtotal, discountTotal, taxTotal, total }
-// A uses this to show line amounts on subscriptions and quotations, so both sides calculate identically.
+# backend/app/services/pricing.py — owned by B (done, tested)
+compute_line(unit_price, quantity, variant_extra=0, taxes=[], discount=None) -> LineResult
+    # (unit_price, subtotal, discount_amount, tax_amount, total), all Decimal
+compute_totals(lines) -> Totals
+# POST /api/pricing/preview exposes it, so forms show the same numbers the backend stores.
+# The frontend never re-implements pricing math.
 
-// src/lib/billing — owned by B
-generateInvoiceForPeriod(subscriptionId, periodStart, tx?) => Invoice   // idempotent
-runBilling(asOf: Date) => { created: number; skipped: number; errors: [] }
+# backend/app/services/billing.py — owned by B
+generate_invoice_for_period(db, subscription_id, period_start) -> Invoice   # idempotent
+run_billing(db, as_of: date) -> BillingRunResult(created, skipped, errors)
 
-// src/lib/subscriptions — owned by A
-transitionSubscription(id, to: SubStatus) => Subscription   // enforces the state machine
-// On → ACTIVE: sets nextInvoiceDate = startDate. B's billing run picks it up from there.
+# backend/app/services/subscriptions.py — owned by A
+transition_subscription(db, subscription_id, to: SubscriptionStatus) -> Subscription  # enforces the state machine
+# On -> ACTIVE: sets next_invoice_date = start_date. B's billing run picks it up from there.
 ```
 
-**Handoff contract between tracks:** A guarantees that an `ACTIVE` subscription has a valid `nextInvoiceDate`, `paymentTermDays` and at least one line. B guarantees that `runBilling` never creates two invoices for the same `(subscriptionId, periodStart)` and advances `nextInvoiceDate` by the plan period.
+**Handoff contract between tracks:** A guarantees that an `ACTIVE` subscription has a valid `next_invoice_date`, `payment_term_days` and at least one line. B guarantees that `run_billing` never creates two invoices for the same `(subscription_id, period_start)` and advances `next_invoice_date` by the plan period.
 
 ---
 
-## 7. Data model (write this together in Phase 0)
+## 7. Data model (implemented in `backend/app/models/`; names below are the original sketch in camelCase, the code uses snake_case)
 
 ```
 User              id, email UNIQUE, passwordHash, name, role(ADMIN|STAFF|CUSTOMER), createdAt
@@ -187,14 +185,14 @@ Sequence          name PK, next   (atomic numbering for SUB / INV)
 
 | Step | Deliverable | Done when |
 |------|-------------|-----------|
-| **A1. Auth** | Signup (email unique, Zod password policy: `^(?=.*[a-z])(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{9,}$`), login, logout, sessions, `requireRole`, middleware route guards | Weak passwords are rejected with clear messages, duplicate email is rejected, and a customer gets 403 on `/products` |
+| **A1. Auth** | Signup (email unique, password policy in `core/security.py` (`password_problems`)), login, logout, sessions, `require_roles`, frontend route guard | Weak passwords are rejected with clear messages, duplicate email is rejected, and a customer gets 403 on `/products` |
 | **A2. Password reset** | Forgot form → hashed single-use token (expires in 1 hour) → emailed link → reset page | Link arrives in Ethereal/Mailtrap, works once, then expires |
 | **A3. Users & customers** | Admin-only "Add staff" page. Customer CRUD (staff and admin) | Staff can't see the Users menu |
 | **A4. Products + variants** | Product CRUD with an inline variant editor (attribute, value, extra price) | "Odoo" variant adds 560 to price in the line picker |
 | **A5. Plans** | Plan CRUD with period, min qty, availability dates and the 4 behaviour flags | Plans outside their availability window can't be picked for new subscriptions |
 | **A6. Quotation templates** | Template CRUD with lines and validity days | "New subscription from template" pre-fills plan and lines and sets `quotationValidUntil` |
-| **A7. Subscriptions** | List (server-paginated, filter by status/customer/plan), form with lines (uses `computeLine` from B), auto number, **state machine** with action buttons (Send quotation / Confirm / Activate / Pause / Renew / Close), each button only shown when the plan allows it | Illegal transitions are rejected server-side. The status badge is visible in the list and detail views |
-| **A8. Lifecycle automation** | Daily job: close expired subs when `plan.autoClose`, expire stale quotations. Renew creates the next term | The job is idempotent and can be triggered from a button or `/api/cron` |
+| **A7. Subscriptions** | List (server-paginated, filter by status/customer/plan), form with lines (uses `POST /api/pricing/preview` from B), auto number, **state machine** with action buttons (Send quotation / Confirm / Activate / Pause / Renew / Close), each button only shown when the plan allows it | Illegal transitions are rejected server-side. The status badge is visible in the list and detail views |
+| **A8. Lifecycle automation** | Daily job: close expired subs when `plan.auto_close`, expire stale quotations. Renew creates the next term | The job is idempotent and can be triggered from a button or `POST /api/subscriptions/run-lifecycle` |
 | **A9. Customer portal** | `/portal`: my subscriptions (read-only detail), profile. Hosts B's invoices page | A customer can never load another customer's records (checked server-side) |
 
 ---
@@ -203,14 +201,14 @@ Sequence          name PK, next   (atomic numbering for SUB / INV)
 
 | Step | Deliverable | Done when |
 |------|-------------|-----------|
-| **B1. Pricing engine (do first, ~2h)** | `src/lib/pricing`: line math, % and fixed taxes, discount application, rounding. **Unit tests** | A can import it. Tests cover variant extra, multi-tax, fixed vs % discount |
+| **B1. Pricing engine (do first, ~2h)** | `services/pricing.py`: line math, % and fixed taxes, discount application, rounding. **Unit tests** *(done in Phase 0)* | A can import it. Tests cover variant extra, multi-tax, fixed vs % discount |
 | **B2. Taxes** | Admin-only tax CRUD. Default tax per product (optional) | Taxes auto-apply to subscription lines |
 | **B3. Discounts** | Admin-only discount CRUD with all rules (fixed/%, min purchase/qty, dates, usage limit, product vs subscription scope) | `findApplicableDiscounts(subscription, date)` returns only valid discounts that haven't hit their limit |
-| **B4. Invoice generation** | `generateInvoiceForPeriod`: snapshot lines, apply taxes and auto-discounts, record `DiscountUsage`, increment `usedCount`, all **in one transaction** | Running it twice for the same period returns the existing invoice and creates no duplicate |
-| **B5. Billing run** | `runBilling(asOf)`: for every ACTIVE sub with `nextInvoiceDate <= asOf`, loop period by period (**catch-up, so nothing is skipped**), advance `nextInvoiceDate`. "Run billing now" admin button + `/api/cron/billing` | Run it 3× in a row and the invoice count stays the same. A sub 3 months behind gets exactly 3 invoices |
+| **B4. Invoice generation** | `generate_invoice_for_period`: snapshot lines, apply taxes and auto-discounts, record `DiscountUsage`, increment `usedCount`, all **in one transaction** | Running it twice for the same period returns the existing invoice and creates no duplicate |
+| **B5. Billing run** | `run_billing(db, as_of)`: for every ACTIVE sub with `nextInvoiceDate <= asOf`, loop period by period (**catch-up, so nothing is skipped**), advance `nextInvoiceDate`. "Run billing now" admin button + `POST /api/invoices/run-billing` | Run it 3× in a row and the invoice count stays the same. A sub 3 months behind gets exactly 3 invoices |
 | **B6. Invoice UI** | List (filter by status/customer/date/overdue), detail, actions: **Confirm / Cancel / Send (email) / Print** (print-CSS page), status badges | Every transition is guarded (you can't confirm a cancelled invoice, etc.) |
 | **B7. Payments** | Record payment (method, amount, date, note) from the invoice page. Payments list. Auto-mark Paid when fully paid. Block overpayment | Outstanding balance updates immediately. Overdue badge shows when past due |
-| **B8. Reports dashboard** | KPI cards: active subs, MRR, revenue this period, payments received, outstanding, overdue (count and amount). Revenue-by-month chart. Overdue invoice table. Filters: date range, plan, customer, status | All numbers come from SQL aggregates (`groupBy`/raw SQL), never by loading rows into JS |
+| **B8. Reports dashboard** | KPI cards: active subs, MRR, revenue this period, payments received, outstanding, overdue (count and amount). Revenue-by-month chart. Overdue invoice table. Filters: date range, plan, customer, status | All numbers come from SQL aggregates (SQLAlchemy `func.sum`/`group_by`), never by loading rows into JS |
 | **B9. Portal invoices** | `/portal/invoices`: my invoices, status, print/download | Customer sees only their own |
 | **B10. Performance** | Seed **5,000 subscriptions / 50,000 invoices / 30,000 payments**. Server-side pagination everywhere. Check indexes with `EXPLAIN` | Every page under 2 s (measure and note the result for the demo) |
 
@@ -223,7 +221,7 @@ Durations assume a ~24-hour hackathon. Scale them proportionally if yours is dif
 | Phase | Time | Person A | Person B | Sync |
 |-------|------|----------|----------|------|
 | **0** Foundation | 0–2h | *together*: skeleton, schema, contracts, nav, seed | | ✅ Schema frozen |
-| **1** Core | 2–10h | A1 → A2 → A3 → A4 → A5 | B1 (pricing, hand to A) → B2 → B3 → B4 | **Checkpoint at ~6h:** A swaps auth stubs for the real thing; B ships `computeLine` |
+| **1** Core | 2–10h | A1 → A2 → A3 → A4 → A5 | B1 (pricing, hand to A) → B2 → B3 → B4 | **Checkpoint at ~6h:** A finishes signup/reset; B ships `/api/pricing/preview` (already done) |
 | **2** Flow | 10–16h | A6 → A7 (subscriptions + state machine) | B5 → B6 → B7 | **Checkpoint at ~14h:** first end-to-end run: template → sub → activate → billing run → invoice → payment |
 | **3** Complete | 16–20h | A8 → A9 portal | B8 reports → B9 portal invoices | |
 | **4** Harden | 20–22h | Role/permission audit, validation messages, empty states | B10 big seed + perf pass | **Cross-test each other's tracks** |
@@ -238,11 +236,11 @@ Durations assume a ~24-hour hackathon. Scale them proportionally if yours is dif
 | Risk | Mitigation |
 |------|-----------|
 | B blocked waiting for A's subscriptions | The schema is frozen in Phase 0. B seeds ACTIVE subscriptions directly and builds the billing engine against seed data |
-| A blocked waiting for pricing | B ships `computeLine` first (~2h). Until then A uses a stub `qty * (price + extra)` |
+| A blocked waiting for pricing | The pricing engine and `POST /api/pricing/preview` already exist (done in Phase 0) |
 | Double-billing under concurrency | DB `UNIQUE(subscriptionId, periodStart)` + transaction. Catch the unique violation and return the existing invoice |
-| Invoice numbers clash | `Sequence` table updated with `UPDATE … RETURNING` inside a transaction |
+| Invoice numbers clash | `Sequence` table updated with `INSERT … ON CONFLICT DO UPDATE … RETURNING` (`services/sequence.py`) |
 | Slow dashboard with thousands of rows | Aggregate in SQL, add indexes (section 7), paginate, cache KPI queries for 60 s if needed |
-| Schema merge conflicts | One migration per PR, ping before editing `schema.prisma` |
+| Schema merge conflicts | One migration per PR, ping before editing `backend/app/models` |
 | Scope creep | Section 12's "nice-to-haves" only after the end-to-end demo works |
 
 ---

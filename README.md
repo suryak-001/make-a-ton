@@ -2,22 +2,38 @@
 
 Plans, subscriptions, recurring billing, payments and reporting in one app. See **[PLAN.md](PLAN.md)** for the requirements, the two-person split and the timeline.
 
-**Stack:** Next.js 16 (App Router) · TypeScript · Prisma 7 + PostgreSQL · Tailwind 4 + shadcn/ui (Base UI) · iron-session · Zod · Vitest
+**Stack:** FastAPI + SQLAlchemy 2 + Alembic + PostgreSQL (Python 3.13) · React 19 + TypeScript + Vite + Tailwind 4 + React Router + TanStack Query
+
+```
+backend/    FastAPI API, models, migrations, seed, pytest
+frontend/   React app (talks to the API through Vite's /api proxy)
+```
 
 ## Setup
 
-Prerequisites: Node 22+ and a local PostgreSQL.
+Prerequisites: [uv](https://docs.astral.sh/uv/) (installs Python 3.13 for you), Node 22+, and a local PostgreSQL.
 
 ```bash
-cp .env.example .env          # set DATABASE_URL and SESSION_SECRET (32+ chars)
+# Backend
+cd backend
+cp .env.example .env                      # set DATABASE_URL (your Postgres user) and SESSION_SECRET
 createdb brightloop_dev
-npm install                   # also runs `prisma generate`
-npm run db:migrate            # apply migrations
-npm run db:seed               # demo data (wipes the DB first)
-npm run dev                   # http://localhost:3000
+uv sync                                   # creates .venv with Python 3.13 and installs dependencies
+uv run alembic upgrade head               # create the tables
+uv run python -m app.seed                 # demo data (wipes the DB first)
+uv run uvicorn app.main:app --reload      # http://localhost:8000  (API docs: /docs)
 ```
 
-### Demo logins (from `prisma/seed.ts`)
+```bash
+# Frontend (second terminal)
+cd frontend
+npm install
+npm run dev                               # http://localhost:5173
+```
+
+Open http://localhost:5173.
+
+### Demo logins (from `backend/app/seed.py`)
 
 | Role | Email | Password |
 |------|-------|----------|
@@ -25,47 +41,42 @@ npm run dev                   # http://localhost:3000
 | Staff | staff@brightloop.test | Staff@12345 |
 | Customer (portal) | priya@acme.test | Customer@123 |
 
-Emails (password reset, invoices) are printed to the dev-server console unless `SMTP_HOST` is set.
+Emails (password reset, invoices) are printed to the backend console unless `SMTP_HOST` is set.
 
-## Scripts
+## Everyday commands
 
-| Script | What it does |
-|--------|--------------|
-| `npm run dev` | Dev server |
-| `npm run build` | Production build |
-| `npm test` | Vitest unit tests (`src/**/*.test.ts`) |
-| `npm run typecheck` | Generate route types and run `tsc` |
-| `npm run lint` | ESLint |
-| `npm run db:migrate -- --name <change>` | Create and apply a migration after editing `schema.prisma` |
-| `npm run db:seed` / `db:reset` | Re-seed / drop, re-migrate and re-seed |
-| `npm run db:studio` | Prisma Studio |
+| Where | Command | What it does |
+|-------|---------|--------------|
+| backend | `uv run pytest` | Tests (needs a `brightloop_test` database: `createdb brightloop_test`) |
+| backend | `uv run ruff check . && uv run ruff format .` | Lint and format |
+| backend | `uv run alembic revision --autogenerate -m "what changed"` | New migration after editing `app/models` |
+| backend | `uv run alembic upgrade head` | Apply migrations |
+| backend | `uv run python -m app.seed` | Reset demo data |
+| frontend | `npm run build` | Type check and production build |
+| frontend | `npm run lint` | oxlint |
 
 ## Where things live
 
 ```
-prisma/schema.prisma      full data model (SHARED: ping your teammate before editing)
-prisma/seed.ts            demo data (section A / section B)
-src/proxy.ts              optimistic route guard (Next 16's "middleware")
-src/lib/auth/             sessions, requireRole(), password policy          [A]
-src/lib/subscriptions/    state machine + lifecycle job (stubs)             [A]
-src/lib/pricing/          line/tax/discount math: implemented + tested      [B]
-src/lib/billing/          invoice generation + billing run (stubs)          [B]
-src/lib/discounts/        applicable-discount lookup (stub)                 [B]
-src/lib/sequence.ts       atomic SUB-/INV- numbering
-src/lib/nav.ts            sidebar menu, role visibility, owner + checklist per page
-src/app/(auth)/           login (works), signup/forgot/reset (placeholders)
-src/app/(app)/            back office for admin + staff
-src/app/portal/           customer portal
+backend/app/models/         full data model (SHARED: ping your teammate before editing)
+backend/app/core/           password policy, session cookie, get_current_user, require_roles   [A]
+backend/app/routers/        one file per module: auth works, the rest are empty stubs
+backend/app/services/       pricing (done, tested) · billing/discounts (stubs, B) · subscriptions (stubs, A)
+backend/app/services/sequence.py   atomic SUB-/INV- numbering
+backend/app/seed.py         demo data (section A / section B)
+frontend/src/nav.ts         sidebar menu, role visibility, owner + checklist per page
+frontend/src/routes.tsx     routes; auto-registers pages from src/pages/<route>/index.tsx
+frontend/src/auth/          session state and the role route guard
+frontend/src/lib/api.ts     fetch wrapper (cookies, errors)
 ```
 
-Every page not built yet shows its PLAN.md checklist and owner. Replace the placeholder with the real page.
+Every page not built yet shows its PLAN.md checklist and owner. To build one, create `frontend/src/pages/<route>/index.tsx` with a default export (e.g. `src/pages/subscriptions/index.tsx`) and it replaces the placeholder automatically. Then implement the matching router in `backend/app/routers/`.
 
 ## Conventions
 
-- **Authorize close to the data.** Call `requireRole(...)` at the top of every page, server action and route handler. Layouts and `proxy.ts` are not an auth boundary.
-- **Customers see only their own records.** Scope portal queries with `session.customerId`.
-- **Money:** `Decimal(12,2)` in the DB. All arithmetic goes through `src/lib/pricing`, and display goes through `money()` in `src/lib/format.ts`.
-- **Numbers:** use `nextNumber()`, never `count() + 1`.
-- **Prisma client** is generated into `src/generated/prisma` (gitignored). Import from `@/generated/prisma/client` and use `db` from `@/lib/db`.
-- **shadcn/ui** here uses Base UI, so components take a `render` prop instead of `asChild`. Add components with `npx shadcn@latest add <name>`.
+- **Authorize on the server, on every route.** Add `Depends(require_roles(...))` (or the `AdminUser` / `StaffUser` / `CustomerUser` aliases from `app.core.deps`) to every endpoint that touches data. The frontend route guard only decides what to render.
+- **Customers see only their own records.** Scope portal queries by `user.customer.id`.
+- **Money is `Decimal`** in Python and `Numeric(12,2)` in the DB; it travels as a string in JSON. All arithmetic goes through `app/services/pricing.py`. The frontend never recomputes totals: it calls `POST /api/pricing/preview` and formats with `money()` from `src/lib/format.ts`.
+- **Numbers:** use `next_number()`, never `count() + 1`.
+- **Email format is validated on signup, not login.** `EmailStr` rejects reserved domains like `.test`, which the demo users use.
 - Branch per feature, small PRs, rebase on `main` often. One migration per PR.
