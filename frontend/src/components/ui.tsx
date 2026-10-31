@@ -1,5 +1,6 @@
 // Small shared primitives. Add to this file (or a sibling) rather than restyling in each page.
 import clsx from 'clsx'
+import { buttonClass } from './button-class'
 import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
 
 export function Button({
@@ -9,13 +10,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'outline' | 'ghost' }) {
   return (
     <button
-      className={clsx(
-        'inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition disabled:opacity-50',
-        variant === 'primary' && 'bg-brand text-brand-fg hover:opacity-90',
-        variant === 'outline' && 'border border-line bg-white hover:bg-surface',
-        variant === 'ghost' && 'hover:bg-surface',
-        className,
-      )}
+      className={buttonClass(variant, className)}
       {...props}
     />
   )
@@ -55,7 +50,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
     </div>
   )
 }

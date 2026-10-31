@@ -20,6 +20,7 @@ from app.models import (
     QuotationTemplate,
     QuotationTemplateLine,
     Subscription,
+    SubscriptionEvent,
     SubscriptionLine,
     Tax,
     User,
@@ -139,7 +140,7 @@ def main() -> None:
                 validity_days=30,
                 lines=[
                     QuotationTemplateLine(product_id=crm.id, variant_id=odoo.id, quantity=10),
-                    QuotationTemplateLine(product_id=support.id, quantity=1),
+                    QuotationTemplateLine(product_id=support.id, quantity=5),
                 ],
             )
         )
@@ -171,13 +172,31 @@ def main() -> None:
                     )
                 )
             db.add(sub)
+            db.flush()
+            # State history, as if the subscription had been walked to its current status by the admin.
+            path = {
+                S.DRAFT: [],
+                S.QUOTATION: [S.QUOTATION],
+                S.CONFIRMED: [S.QUOTATION, S.CONFIRMED],
+                S.ACTIVE: [S.QUOTATION, S.CONFIRMED, S.ACTIVE],
+            }[status]
+            previous = None
+            for step in [S.DRAFT, *path]:
+                db.add(
+                    SubscriptionEvent(
+                        subscription_id=sub.id, from_status=previous, to_status=step, actor_id=admin.id
+                    )
+                )
+                previous = step
 
         S = SubscriptionStatus
         # Started 60 days ago, monthly → two periods due, exercises billing catch-up.
         subscription(acme, monthly, S.ACTIVE, days(-60), [(crm, None, 3), (analytics, None, 1)])
         subscription(
-            globex, yearly, S.ACTIVE, days(-10), [(crm, odoo, 12), (support, None, 1)], expiry=days(355)
+            globex, yearly, S.ACTIVE, days(-10), [(crm, odoo, 12), (support, None, 5)], expiry=days(355)
         )
+        # Starts in 5 days, so nothing is overdue for billing: the customer can pause it in the portal demo.
+        subscription(acme, monthly, S.ACTIVE, days(5), [(analytics, None, 2)], expiry=days(370))
         subscription(northwind, monthly, S.QUOTATION, days(7), [(crm, None, 5)])
         subscription(northwind, monthly, S.DRAFT, days(14), [(analytics, None, 2)])
 

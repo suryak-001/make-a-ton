@@ -8,5 +8,6 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   // The browser only talks to this origin; /api is forwarded to FastAPI, so the session cookie is same-origin.
-  server: { port: 5173, proxy: { '/api': 'http://localhost:8000' } },
+  // Point it at another machine's API with API_TARGET=http://192.168.1.20:8000 npm run dev
+  server: { port: 5173, proxy: { '/api': process.env.API_TARGET ?? 'http://localhost:8000' } },
 })

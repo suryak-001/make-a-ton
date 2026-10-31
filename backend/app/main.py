@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.core.errors import register_error_handlers
 from app.routers import (
     auth,
     customers,
@@ -19,6 +20,7 @@ from app.routers import (
 )
 
 app = FastAPI(title="Brightloop Subscriptions API")
+register_error_handlers(app)
 
 for module in (
     auth,

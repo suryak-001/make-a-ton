@@ -14,6 +14,7 @@ export type AuthState = {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<User>
+  signup: (name: string, email: string, password: string) => Promise<User>
   logout: () => Promise<void>
 }
 
