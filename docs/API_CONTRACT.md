@@ -1,11 +1,11 @@
-# API contract (Person A publishes, Person B consumes)
+# API contract (each owner publishes their feature's endpoints, the other consumes them)
 
 Base path `/api`. Session cookie auth (same origin through the Vite proxy). `A` = admin only, `S` = admin or staff, `C` = the signed-in customer's own data. Live docs: `http://localhost:8000/docs`.
 
 ## Conventions
 - **Money:** strings with two decimals, for example `"560.00"`. Never floats. The frontend formats for display and never re-implements pricing math. Use `POST /api/pricing/preview` for live totals.
 - **Dates:** ISO strings, `2026-10-31`. Timestamps are ISO with timezone.
-- **Errors:** FastAPI's default shape, which `frontend/src/lib/api.ts` already reads. A single failure is `{"detail": "message"}`. Field validation failures are HTTP 422 with `{"detail": [{"loc": ["body", "password"], "msg": "message", "type": "..."}]}`, and Person A uses this for the password policy and other field rules so the form can show the message next to the field. 401 when signed out, 403 when the role is not allowed, 404 for another customer's record. Person B extends `ApiError` to carry the field list.
+- **Errors:** FastAPI's default shape, which `frontend/src/lib/api.ts` already reads. A single failure is `{"detail": "message"}`. Field validation failures are HTTP 422 with `{"detail": [{"loc": ["body", "password"], "msg": "message", "type": "..."}]}`, and the endpoint owner uses this for the password policy and other field rules so the form can show the message next to the field. 401 when signed out, 403 when the role is not allowed, 404 for another customer's record. Person B extends `ApiError` to carry the field list (step B1).
 - **Lists:** `{"count": 0, "page": 1, "page_size": 25, "results": []}` with `?page=` and `?page_size=`, plus filters named in the table.
 - **Enums** are the uppercase strings from `backend/app/enums.py`.
 - A change to this file needs both people to agree in chat first.
@@ -49,4 +49,4 @@ Base path `/api`. Session cookie auth (same origin through the Vite proxy). `A` 
 `due = created + already_billed + skipped + failed` must always hold. The Billing Run page shows that equation.
 
 ## Seed data
-`uv run python -m app.seed` creates demo users, customers, products, plans, taxes and a discount. Person A adds a larger option (`--big`) that creates 5,000 subscriptions and their invoices and payments, so the frontend can test pagination and the 2-second target.
+`uv run python -m app.seed` creates demo users, customers, products, plans, taxes and a discount. Person A adds a larger option (`--big`, step A9) that creates 5,000 subscriptions and their invoices and payments, so the frontend can test pagination and the 2-second target.
