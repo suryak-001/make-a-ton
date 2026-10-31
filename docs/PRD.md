@@ -62,7 +62,7 @@ Permissions are enforced on the server for every request. A customer asking for 
 - FR-19 Daily, weekly, monthly and yearly all work. Dates are computed from the original start date, so a 31 Jan monthly subscription bills 28 Feb, 31 Mar, 30 Apr.
 - FR-20 Taxes come from Admin-set rules and are calculated automatically through the shared pricing module. Tax is computed per line and the invoice tax is the sum of the lines.
 - FR-21 Invoice states: Draft → Confirmed → Paid, plus Cancelled. Staff can confirm, cancel, send (email) and print (print-friendly page).
-- FR-22 The invoice number is assigned when the invoice is **confirmed**, from the `Sequence` table, so cancelled drafts leave no gap. The number is empty until then, which needs `Invoice.number` to be nullable (one migration, step A3). Lines store a snapshot of product, price and tax, so later catalogue changes do not alter old invoices. Confirmed invoices are not edited, only cancelled.
+- FR-22 The invoice number is assigned when the invoice is **confirmed**, from the `Sequence` table, so cancelled drafts leave no gap. The number is empty until then, so `Invoice.number` is nullable. Lines store a snapshot of product, price and tax, so later catalogue changes do not alter old invoices. Confirmed invoices are not edited, only cancelled.
 - FR-23 **(decision)** A cancelled invoice frees its period only through an explicit admin "re-bill" action. The Billing Run never rebills a cancelled period on its own.
 
 ### 5.6 Discounts (Admin only)

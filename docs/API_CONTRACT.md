@@ -55,4 +55,4 @@ Updates use `PUT`. Status: **done** means built, merged to `main` and covered by
 - `skipped`: later periods of a subscription whose earlier period failed. They are not attempted, so they are billed in order next run.
 
 ## Seed data
-`uv run python -m app.seed` creates demo users, customers, products, plans, taxes and a discount. Person A adds a larger option (`--big`, step A9) that creates 5,000 subscriptions and their invoices and payments, so the frontend can test pagination and the 2-second target.
+`uv run python -m app.seed` creates demo users, customers, products, plans, taxes and a discount. Add `--big` (`uv run python -m app.seed --big`) for 5,000 subscriptions across 200 customers with about 11,500 invoices and 9,000 payments (paid, part-paid and overdue), so pagination and the 2-second target can be tested. Measured on that data (step M9): every money-side endpoint answers in under 60 ms and the heavy queries use their indexes.

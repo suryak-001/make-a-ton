@@ -19,3 +19,6 @@ dist/
 
 # folders made for sharing outside git (AirDrop etc.)
 share/
+
+# private working note, never commit
+final check.md
