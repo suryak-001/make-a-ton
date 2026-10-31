@@ -45,6 +45,18 @@ Open http://localhost:5173.
 
 Emails (password reset, invoices) are printed to the backend console unless `SMTP_HOST` is set.
 
+### Paying online (demo gateway)
+
+Customers pay a confirmed invoice from **My invoices → Pay**. The checkout talks to a built-in demo gateway (`backend/app/services/gateway.py`), test mode only: no real money moves, and only these details are accepted.
+
+| Method | Approves | Declines |
+|--------|----------|----------|
+| Card (any future expiry, any CVV, OTP `123456`) | `4111 1111 1111 1111`, `5555 5555 5555 4444` | `4000 0000 0000 0002` (bank declines), `4000 0000 0000 9995` (insufficient funds) |
+| UPI | `success@demo` | `failure@demo` |
+| Netbanking | choose *Simulate success* on the bank page | choose *Simulate failure* |
+
+The flow matches a real Indian gateway (server-side order, signed result checked by the server, a server-to-server notification as a webhook would send), so swapping in Razorpay later means replacing the gateway service, not the screens.
+
 ## Everyday commands
 
 | Where | Command | What it does |

@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.errors import NotFound
 from app.models import Subscription, SubscriptionLine
 from app.schemas.subscriptions import (
+    AddonOption,
+    AddonsOut,
+    AddonVariant,
     EventOut,
     LineOut,
     PlanDetail,
@@ -16,7 +19,7 @@ from app.schemas.subscriptions import (
     SubscriptionDetail,
     TaxOut,
 )
-from app.services.subscriptions import EDITABLE, allowed_actions
+from app.services.subscriptions import EDITABLE, addon_blocker, addon_products, allowed_actions
 
 DETAIL_LOAD = (
     selectinload(Subscription.lines).selectinload(SubscriptionLine.product),
@@ -47,6 +50,7 @@ def _line(line: SubscriptionLine) -> LineOut:
         tax_amount=line.amount - subtotal,
         amount=line.amount,
         taxes=[TaxOut(id=t.id, name=t.name, kind=t.kind, rate=t.rate) for t in line.taxes],
+        is_addon=line.product.is_addon,
     )
 
 
@@ -105,3 +109,30 @@ def staff_detail(sub: Subscription, today: date | None = None) -> SubscriptionDe
 
 def portal_detail(sub: Subscription, today: date | None = None) -> PortalSubscriptionDetail:
     return PortalSubscriptionDetail(**_common(sub, customer_view=True, today=today or date.today()))
+
+
+def addons_out(db: Session, sub: Subscription, today: date | None = None) -> AddonsOut:
+    """Every active add-on product, marked with the line it has on `sub` when it is switched on."""
+    on = {line.product_id: line for line in sub.lines}
+    blocker = addon_blocker(sub, today)
+    return AddonsOut(
+        editable=blocker is None,
+        blocker=blocker,
+        min_quantity=sub.plan.min_quantity,
+        options=[
+            AddonOption(
+                product_id=p.id,
+                name=p.name,
+                notes=p.notes,
+                unit_price=p.sales_price,
+                taxes=[t.name for t in p.default_taxes if t.active],
+                variants=[
+                    AddonVariant(id=v.id, label=f"{v.attribute}: {v.value}", extra_price=v.extra_price)
+                    for v in p.variants
+                ],
+                line_id=on[p.id].id if p.id in on else None,
+                quantity=on[p.id].quantity if p.id in on else None,
+            )
+            for p in addon_products(db)
+        ],
+    )

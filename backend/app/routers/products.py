@@ -18,7 +18,7 @@ _LOAD = (selectinload(Product.variants), selectinload(Product.default_taxes))
 
 
 def _apply(db: Db, product: Product, body: ProductIn) -> None:
-    for field in ("name", "type", "sales_price", "cost_price", "notes", "active"):
+    for field in ("name", "type", "sales_price", "cost_price", "notes", "active", "is_addon"):
         setattr(product, field, getattr(body, field))
 
     ids = set(body.default_tax_ids)

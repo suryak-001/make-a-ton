@@ -198,10 +198,18 @@ def main(big: bool = False) -> None:
             variants=[ProductVariant(attribute="Brand", value="Standard", extra_price=D(0)), odoo],
         )
         analytics = Product(
-            name="Analytics add-on", sales_price=D(400), cost_price=D(80), default_taxes=[gst18]
+            name="Analytics add-on",
+            sales_price=D(400),
+            cost_price=D(80),
+            default_taxes=[gst18],
+            is_addon=True,
         )
         support = Product(
-            name="Priority support", sales_price=D(800), cost_price=D(200), default_taxes=[gst18]
+            name="Priority support",
+            sales_price=D(800),
+            cost_price=D(200),
+            default_taxes=[gst18],
+            is_addon=True,
         )
         db.add_all([crm, analytics, support])
 
@@ -297,7 +305,9 @@ def main(big: bool = False) -> None:
             globex, yearly, S.ACTIVE, days(-10), [(crm, odoo, 12), (support, None, 5)], expiry=days(355)
         )
         # Starts in 5 days, so nothing is overdue for billing: the customer can pause it in the portal demo.
-        subscription(acme, monthly, S.ACTIVE, days(5), [(analytics, None, 2)], expiry=days(370))
+        subscription(
+            acme, monthly, S.ACTIVE, days(5), [(crm, None, 2), (analytics, None, 1)], expiry=days(370)
+        )
         subscription(northwind, monthly, S.QUOTATION, days(7), [(crm, None, 5)])
         subscription(northwind, monthly, S.DRAFT, days(14), [(analytics, None, 2)])
 
@@ -318,7 +328,7 @@ def main(big: bool = False) -> None:
 
         db.commit()
         if big:
-            seed_volume(db, admin, monthly, analytics, gst18)
+            seed_volume(db, admin, monthly, crm, gst18)
 
         # Billing, invoice actions, payments and reports all have data straight after seeding.
         run_billing(db, today)

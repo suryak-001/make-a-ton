@@ -6,12 +6,15 @@ from fastapi import APIRouter, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import contains_eager, joinedload
 
+from app.core.csv_export import csv_response
 from app.core.deps import AdminUser, Db, StaffUser
 from app.core.pagination import Page, Pages, like_pattern, paginate
 from app.enums import SubscriptionStatus
 from app.models import Customer, Subscription, SubscriptionLine
 from app.schemas.subscriptions import (
+    AddonsOut,
     LifecycleResult,
+    LineIn,
     RenewIn,
     SubscriptionDetail,
     SubscriptionIn,
@@ -19,27 +22,13 @@ from app.schemas.subscriptions import (
     TransitionIn,
 )
 from app.services import subscriptions as svc
-from app.services.subscription_views import load_detail, staff_detail
+from app.services.subscription_views import addons_out, load_detail, staff_detail
 
 router = APIRouter(prefix="/api/subscriptions", tags=["subscriptions"])
 
 
-@router.get("", response_model=Page[SubscriptionListItem])
-def list_subscriptions(
-    db: Db,
-    _: StaffUser,
-    pages: Pages,
-    status: SubscriptionStatus | None = None,
-    customer_id: int | None = None,
-    plan_id: int | None = None,
-    q: str | None = None,
-):
+def _filtered(status: SubscriptionStatus | None, customer_id: int | None, plan_id: int | None, q: str | None):
     """Filters hit indexed columns (status, customer_id); `q` matches the number or customer name."""
-    total_expr = (
-        select(func.coalesce(func.sum(SubscriptionLine.amount), 0))
-        .where(SubscriptionLine.subscription_id == Subscription.id)
-        .scalar_subquery()
-    )
     base = select(Subscription).join(Subscription.customer)
     if status:
         base = base.where(Subscription.status == status)
@@ -52,13 +41,34 @@ def list_subscriptions(
         base = base.where(
             or_(Subscription.number.ilike(like, escape="\\"), Customer.name.ilike(like, escape="\\"))
         )
+    return base
 
-    stmt = (
+
+def _with_total(base):
+    total_expr = (
+        select(func.coalesce(func.sum(SubscriptionLine.amount), 0))
+        .where(SubscriptionLine.subscription_id == Subscription.id)
+        .scalar_subquery()
+    )
+    return (
         base.add_columns(total_expr.label("total"))
         .options(contains_eager(Subscription.customer), joinedload(Subscription.plan))
         .order_by(Subscription.id.desc())
     )
-    rows, total = paginate(db, stmt, pages, scalars=False, count_from=base)
+
+
+@router.get("", response_model=Page[SubscriptionListItem])
+def list_subscriptions(
+    db: Db,
+    _: StaffUser,
+    pages: Pages,
+    status: SubscriptionStatus | None = None,
+    customer_id: int | None = None,
+    plan_id: int | None = None,
+    q: str | None = None,
+):
+    base = _filtered(status, customer_id, plan_id, q)
+    rows, total = paginate(db, _with_total(base), pages, scalars=False, count_from=base)
     items = [
         SubscriptionListItem(
             id=s.id,
@@ -73,6 +83,46 @@ def list_subscriptions(
         for s, line_total in rows
     ]
     return Page(items=items, total=total, page=pages.page, page_size=pages.page_size)
+
+
+@router.get("/export.csv")
+def export_subscriptions(
+    db: Db,
+    _: StaffUser,
+    status: SubscriptionStatus | None = None,
+    customer_id: int | None = None,
+    plan_id: int | None = None,
+    q: str | None = None,
+):
+    stmt = _with_total(_filtered(status, customer_id, plan_id, q))
+    rows = (
+        (
+            s.number,
+            s.status,
+            s.customer.name,
+            s.customer.email,
+            s.plan.name,
+            s.plan.billing_period,
+            s.start_date,
+            s.expiry_date,
+            s.next_invoice_date,
+            line_total,
+        )
+        for s, line_total in db.execute(stmt)
+    )
+    header = [
+        "Subscription",
+        "Status",
+        "Customer",
+        "Email",
+        "Plan",
+        "Billing period",
+        "Start date",
+        "Expiry date",
+        "Next invoice",
+        "Total per period",
+    ]
+    return csv_response("subscriptions", header, rows)
 
 
 @router.post("", response_model=SubscriptionDetail, status_code=status.HTTP_201_CREATED)
@@ -118,5 +168,25 @@ def transition(subscription_id: int, body: TransitionIn, db: Db, user: StaffUser
 @router.post("/{subscription_id}/renew", response_model=SubscriptionDetail)
 def renew(subscription_id: int, body: RenewIn, db: Db, user: StaffUser):
     svc.renew_subscription(db, subscription_id, actor=user, reason=body.reason)
+    db.commit()
+    return staff_detail(load_detail(db, subscription_id))
+
+
+@router.get("/{subscription_id}/addons", response_model=AddonsOut)
+def list_addons(subscription_id: int, db: Db, _: StaffUser):
+    return addons_out(db, load_detail(db, subscription_id))
+
+
+@router.post("/{subscription_id}/addons", response_model=SubscriptionDetail)
+def add_addon(subscription_id: int, body: LineIn, db: Db, user: StaffUser):
+    """Switches an add-on on. It is billed from the next invoice; nothing already invoiced changes."""
+    svc.add_addon(db, subscription_id, body, actor=user)
+    db.commit()
+    return staff_detail(load_detail(db, subscription_id))
+
+
+@router.delete("/{subscription_id}/addons/{line_id}", response_model=SubscriptionDetail)
+def remove_addon(subscription_id: int, line_id: int, db: Db, user: StaffUser):
+    svc.remove_addon(db, subscription_id, line_id, actor=user)
     db.commit()
     return staff_detail(load_detail(db, subscription_id))

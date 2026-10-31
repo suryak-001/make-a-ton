@@ -52,3 +52,9 @@ class PaymentMethod(enum.StrEnum):
     UPI = "UPI"
     CHEQUE = "CHEQUE"
     OTHER = "OTHER"
+
+
+class GatewayOrderStatus(enum.StrEnum):
+    CREATED = "CREATED"  # waiting for the customer to pay; a failed attempt leaves it here so they can retry
+    PAID = "PAID"
+    REFUND_DUE = "REFUND_DUE"  # the gateway took the money but the invoice had been settled meanwhile

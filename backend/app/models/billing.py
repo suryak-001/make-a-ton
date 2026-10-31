@@ -3,10 +3,10 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Enum, ForeignKey, Index, UniqueConstraint, text
+from sqlalchemy import Enum, ForeignKey, Index, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.enums import InvoiceStatus, PaymentMethod
+from app.enums import GatewayOrderStatus, InvoiceStatus, PaymentMethod
 from app.models.base import Base, Money, Timestamp, utcnow
 from app.models.identity import Customer, User
 from app.models.rules import Discount
@@ -100,8 +100,37 @@ class Payment(Base):
     amount: Mapped[Money]
     payment_date: Mapped[date]
     note: Mapped[str | None]
+    # Fingerprint of the bank statement line this payment came from (services.reconciliation). Unique, so the
+    # same statement line can never be recorded twice, however often the statement is uploaded.
+    bank_ref: Mapped[str | None] = mapped_column(String(64), unique=True)
+    # The online checkout's payment id (services.gateway). Unique, so one online payment is recorded once.
+    gateway_payment_id: Mapped[str | None] = mapped_column(String(32), unique=True)
     recorded_by_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"))
     created_at: Mapped[Timestamp] = mapped_column(default=utcnow)
 
     invoice: Mapped[Invoice] = relationship(back_populates="payments")
     recorded_by: Mapped[User | None] = relationship()
+
+
+class GatewayOrder(Base):
+    """One attempt to collect an invoice's balance online, as a payment gateway sees it: the amount is fixed here
+    on the server when checkout opens, so the browser can never change what is charged."""
+
+    __tablename__ = "gateway_order"
+    __table_args__ = (Index("ix_gateway_order_invoice_id", "invoice_id"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)  # order_XXXXXXXXXXXXXX
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoice.id"))
+    amount: Mapped[Money]
+    status: Mapped[GatewayOrderStatus] = mapped_column(
+        Enum(GatewayOrderStatus, name="gateway_order_status"), default=GatewayOrderStatus.CREATED
+    )
+    payment_id: Mapped[str | None] = mapped_column(String(32), unique=True)  # pay_XXXXXXXXXXXXXX once paid
+    method: Mapped[PaymentMethod | None] = mapped_column(Enum(PaymentMethod, name="payment_method"))
+    instrument: Mapped[str | None]  # "Visa •••• 1111", "success@demo", "HDFC Bank"
+    attempts: Mapped[int] = mapped_column(default=0)
+    failure_reason: Mapped[str | None]
+    created_at: Mapped[Timestamp] = mapped_column(default=utcnow)
+    paid_at: Mapped[Timestamp | None]
+
+    invoice: Mapped[Invoice] = relationship()

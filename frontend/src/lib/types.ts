@@ -27,6 +27,7 @@ export type Product = {
   cost_price: string
   notes: string | null
   active: boolean
+  is_addon: boolean
   variants: Variant[]
   default_taxes: Tax[]
   created_at: string
@@ -79,6 +80,7 @@ export type SubLine = {
   tax_amount: string
   amount: string
   taxes: Tax[]
+  is_addon: boolean
 }
 
 export type SubEvent = {
@@ -239,3 +241,56 @@ export type BillingRun = {
 }
 
 export type ReportFilters = { from_date?: string; to_date?: string; plan_id?: string; customer_id?: string }
+
+/** An add-on product and, when it is switched on for this subscription, its line. */
+export type AddonOption = {
+  product_id: number
+  name: string
+  notes: string | null
+  unit_price: string
+  taxes: string[]
+  variants: { id: number; label: string; extra_price: string }[]
+  line_id: number | null
+  quantity: number | null
+}
+export type Addons = { editable: boolean; blocker: string | null; min_quantity: number; options: AddonOption[] }
+
+export type TimelineItem = {
+  at: string
+  kind: 'subscription' | 'invoice' | 'payment'
+  title: string
+  detail: string | null
+  amount: string | null
+  link: string
+}
+
+export type CustomerOverview = {
+  customer: Customer
+  summary: Summary
+  average_days_late: string | null
+  subscriptions: SubListItem[]
+  invoices: Invoice[]
+  payments: Payment[]
+  timeline: TimelineItem[]
+}
+
+export type StatementRow = {
+  ref: string
+  line: number
+  date: string
+  description: string
+  amount: string
+  method: Payment['method']
+  status: 'matched' | 'unmatched' | 'already_recorded'
+  confidence: 'high' | 'medium' | 'low' | null
+  reason: string
+  invoice: { id: number; number: string; customer_name: string; outstanding: string; due_date: string } | null
+}
+export type StatementPreview = { rows: StatementRow[]; debits_skipped: number; problems: { line: number; error: string }[] }
+export type ReconcileResult = {
+  recorded: number
+  already_recorded: number
+  failed: number
+  amount_recorded: string
+  results: { ref: string; status: 'recorded' | 'already_recorded' | 'failed'; message: string; invoice_number: string | null }[]
+}

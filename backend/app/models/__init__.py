@@ -1,6 +1,6 @@
 # Import every model module so Base.metadata (Alembic, create_all) sees all tables.
 from app.models.base import Base
-from app.models.billing import DiscountUsage, Invoice, InvoiceLine, Payment
+from app.models.billing import DiscountUsage, GatewayOrder, Invoice, InvoiceLine, Payment
 from app.models.catalog import Plan, Product, ProductVariant, QuotationTemplate, QuotationTemplateLine
 from app.models.identity import Customer, PasswordResetToken, User
 from app.models.rules import Discount, Tax
@@ -12,6 +12,7 @@ __all__ = [
     "Customer",
     "Discount",
     "DiscountUsage",
+    "GatewayOrder",
     "Invoice",
     "InvoiceLine",
     "PasswordResetToken",

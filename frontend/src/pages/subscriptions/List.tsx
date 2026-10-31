@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { useAuth } from '@/auth/context'
 import { buttonClass } from '@/components/button-class'
 import { DataTable, Pagination } from '@/components/DataTable'
+import { ExportLink } from '@/components/ExportLink'
 import { Alert, Input, Select } from '@/components/forms'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button, PageHeader } from '@/components/ui'
@@ -68,6 +69,7 @@ export default function SubscriptionList() {
                 {lifecycle.isPending ? 'Running…' : 'Run lifecycle job'}
               </Button>
             )}
+            <ExportLink path="/subscriptions" params={{ q: debounced, status, plan_id: planId }} />
             <Link to="new" className={buttonClass()}>
               New subscription
             </Link>

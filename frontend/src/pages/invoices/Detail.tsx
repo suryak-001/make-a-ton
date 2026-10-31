@@ -21,7 +21,7 @@ export default function InvoiceDetail() {
       {data && (
         <div className="grid gap-5">
           <InvoiceActions invoice={data} />
-          <InvoiceView invoice={data} />
+          <InvoiceView staff invoice={data} />
           {data.allowed_actions.includes('pay') && <PaymentForm key={data.amount_paid} invoice={data} />}
         </div>
       )}

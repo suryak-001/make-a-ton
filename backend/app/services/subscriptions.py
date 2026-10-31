@@ -340,6 +340,93 @@ def _own_subscription(db: Session, user: User, subscription_id: int) -> Subscrip
     return sub
 
 
+# ───────────────────────────── add-ons ─────────────────────────────
+
+
+def addon_blocker(sub: Subscription, today: date | None = None) -> str | None:
+    """Why the add-ons on `sub` can't be switched on or off right now, or None if they can. A change counts from
+    the next invoice, so it waits while billing is behind (the overdue period was sold without it)."""
+    today = today or date.today()
+    if sub.status not in LIVE:
+        return "Add-ons can only be changed on an active or paused subscription."
+    if sub.next_invoice_date is not None and sub.next_invoice_date < today:
+        return "Billing is behind for this subscription. Add-ons can be changed once the overdue invoice has been created."
+    return None
+
+
+def addon_products(db: Session) -> list[Product]:
+    return list(
+        db.scalars(
+            select(Product)
+            .where(Product.is_addon.is_(True), Product.active.is_(True))
+            .options(selectinload(Product.variants), selectinload(Product.default_taxes))
+            .order_by(Product.name, Product.id)
+        )
+    )
+
+
+def add_addon(
+    db: Session,
+    subscription_id: int,
+    line_in: LineIn,
+    *,
+    actor: User | None = None,
+    today: date | None = None,
+) -> Subscription:
+    """Switches an add-on on: a new line, priced today, billed from the next invoice on. One line per add-on."""
+    sub = _locked(db, subscription_id)
+    problem = addon_blocker(sub, today)
+    if problem:
+        raise Conflict(problem)
+    product = db.get(Product, line_in.product_id)
+    if product is None or not product.is_addon:
+        raise Invalid("That product isn't an add-on.", field="product_id")
+    if any(line.product_id == product.id for line in sub.lines):
+        raise Conflict(f"{product.name} is already switched on.")
+    (line,) = _build_lines(db, sub.plan, [line_in])
+    sub.lines.append(line)
+    _record(db, sub, sub.status, sub.status, actor, f"Add-on switched on: {product.name} × {line.quantity}")
+    db.flush()
+    return sub
+
+
+def remove_addon(
+    db: Session,
+    subscription_id: int,
+    line_id: int,
+    *,
+    actor: User | None = None,
+    today: date | None = None,
+) -> Subscription:
+    """Switches an add-on off: its line goes, and the next invoice no longer carries it. Main lines stay."""
+    sub = _locked(db, subscription_id)
+    problem = addon_blocker(sub, today)
+    if problem:
+        raise Conflict(problem)
+    line = next((x for x in sub.lines if x.id == line_id), None)
+    if line is None:
+        raise NotFound("That line isn't on this subscription.")
+    if not line.product.is_addon:
+        raise Conflict("Only add-ons can be switched off. The main lines stay until the subscription ends.")
+    if len(sub.lines) == 1:
+        raise Conflict("A subscription needs at least one line.")
+    name = line.product.name
+    sub.lines.remove(line)  # delete-orphan removes the row
+    _record(db, sub, sub.status, sub.status, actor, f"Add-on switched off: {name}")
+    db.flush()
+    return sub
+
+
+def customer_add_addon(db: Session, user: User, subscription_id: int, line_in: LineIn) -> Subscription:
+    sub = _own_subscription(db, user, subscription_id)
+    return add_addon(db, sub.id, line_in, actor=user)
+
+
+def customer_remove_addon(db: Session, user: User, subscription_id: int, line_id: int) -> Subscription:
+    sub = _own_subscription(db, user, subscription_id)
+    return remove_addon(db, sub.id, line_id, actor=user)
+
+
 # ───────────────────────────── lifecycle job ─────────────────────────────
 
 

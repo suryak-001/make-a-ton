@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 import { formatDate, money } from '@/lib/format'
 import { PERIOD_LABEL, PERIOD_UNIT, type PortalSubscription, type Subscription } from '@/lib/types'
 import { EventHistory, StatusStepper } from './StatusTimeline'
@@ -15,7 +16,8 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Read-only view of a subscription, shared by the staff detail page and the customer portal. */
-export function SubscriptionView({ sub, actions, staff = false }: { sub: PortalSubscription | Subscription; actions?: ReactNode; staff?: boolean }) {
+/** `afterLines` sits right under the line items (the add-ons panel, which changes them). */
+export function SubscriptionView({ sub, actions, afterLines, staff = false }: { sub: PortalSubscription | Subscription; actions?: ReactNode; afterLines?: ReactNode; staff?: boolean }) {
   const detail = sub as Partial<Subscription>
   const quoteLine =
     sub.status === 'DRAFT'
@@ -30,7 +32,7 @@ export function SubscriptionView({ sub, actions, staff = false }: { sub: PortalS
         <h2 className="text-[18px] font-medium tracking-[-0.025em]">{sub.number}</h2>
         <StatusBadge status={sub.status} />
         <span className="text-[12px] text-muted">
-          {sub.customer.name} · {sub.plan.name} ({PERIOD_LABEL[sub.plan.billing_period]})
+          {staff ? <Link to={`/customers/${sub.customer.id}`} className="text-brand hover:underline">{sub.customer.name}</Link> : sub.customer.name} · {sub.plan.name} ({PERIOD_LABEL[sub.plan.billing_period]})
         </span>
       </div>
 
@@ -65,6 +67,7 @@ export function SubscriptionView({ sub, actions, staff = false }: { sub: PortalS
               <tr key={line.id}>
                 <td className="px-4 py-3">
                   <span className="font-medium">{line.product_name}</span>
+                  {line.is_addon && <span className="ml-2 text-[10px] font-medium uppercase tracking-[0.08em] text-brand">Add-on</span>}
                   {line.variant_label && <span className="block text-xs text-muted">{line.variant_label}</span>}
                 </td>
                 <td className="px-4 py-3 text-right">{line.quantity}</td>
@@ -96,6 +99,8 @@ export function SubscriptionView({ sub, actions, staff = false }: { sub: PortalS
           </tfoot>
         </table>
       </Card>
+
+      {afterLines}
 
       <Card className="p-5">
         <h3 className="mb-3 font-medium">History</h3>

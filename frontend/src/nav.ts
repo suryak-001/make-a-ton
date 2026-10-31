@@ -19,6 +19,7 @@ export const APP_NAV: NavItem[] = [
   { href: '/invoices', label: 'Invoices', roles: STAFF, owner: 'A', step: 'A5', todo: ['List with status/customer/date/overdue filters', 'Confirm / Cancel / Send / Print', 'Run billing now'] },
   { href: '/billing-run', label: 'Billing run', roles: STAFF, owner: 'A', step: 'A4', todo: ['Pick the bill-through date and run billing', 'Counts that add up: due = created + already billed + skipped + failed', 'Run again is safe'] },
   { href: '/payments', label: 'Payments', roles: STAFF, owner: 'A', step: 'A6', todo: ['Record payment against invoice', 'Auto-mark invoice Paid', 'Block overpayment'] },
+  { href: '/reconciliation', label: 'Bank reconciliation', roles: STAFF, owner: 'A', step: 'A10', todo: ['Upload a bank statement CSV', 'Suggested invoice per credit, with the reason', 'Record the approved lines once'] },
   { href: '/quotation-templates', label: 'Quotation templates', roles: STAFF, owner: 'B', step: 'B5', todo: ['Template CRUD with lines + validity days', 'New subscription from template'] },
   { href: '/products', label: 'Products', roles: STAFF, owner: 'B', step: 'B3', todo: ['Product CRUD (admin), read-only for staff', 'Variant editor: attribute, value, extra price'] },
   { href: '/plans', label: 'Plans', roles: STAFF, owner: 'B', step: 'B4', todo: ['Plan CRUD (admin), read-only for staff', 'Period, min qty, availability, 4 behaviour flags'] },

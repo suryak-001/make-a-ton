@@ -39,6 +39,7 @@ class ProductIn(BaseModel):
     cost_price: MoneyIn = Decimal("0")
     notes: OptionalText = None
     active: bool = True
+    is_addon: bool = False  # can be switched on and off on a live subscription
     variants: list[VariantIn] = []
     default_tax_ids: list[int] = []
 
@@ -65,6 +66,7 @@ class ProductOut(BaseModel):
     cost_price: Decimal
     notes: str | None
     active: bool
+    is_addon: bool
     variants: list[VariantOut]
     default_taxes: list[TaxBrief]
     created_at: datetime

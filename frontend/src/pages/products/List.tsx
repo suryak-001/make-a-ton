@@ -65,7 +65,7 @@ export default function ProductList() {
         onRowClick={(p) => navigate(String(p.id))}
         empty="No products found."
         columns={[
-          { header: 'Name', cell: (p) => <span className="font-medium">{p.name}</span> },
+          { header: 'Name', cell: (p) => <span className="font-medium">{p.name}{p.is_addon && <span className="ml-2 text-[10px] font-medium uppercase tracking-[0.08em] text-brand">Add-on</span>}</span> },
           { header: 'Type', cell: (p) => (p.type === 'SERVICE' ? 'Service' : 'Goods') },
           { header: 'Variants', cell: (p) => (p.variants.length ? p.variants.map((v) => `${v.attribute}: ${v.value}`).join(', ') : <span className="text-muted">—</span>) },
           { header: 'Sales price', className: 'text-right', cell: (p) => money(p.sales_price) },
