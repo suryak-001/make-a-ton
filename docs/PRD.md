@@ -105,9 +105,6 @@ Permissions are enforced on the server for every request. A customer asking for 
 ## 8. Out of scope
 Multiple companies, payment gateway, proration on plan change, mobile app, GST invoice format, automatic reminder emails, microservices, AI features. If the core is finished, an optional "draft a quote from a sentence" feature is the only AI idea worth building, with human confirmation and the app fully working without it.
 
-## 9. Confirm before submitting
-- The organiser email or rules page confirms any stack is allowed and states the submission format and deadline.
-- Which event this belongs to. This was inferred, not confirmed.
-
-## 10. Not verified
-How the event is judged beyond Odoo's published must-haves (dynamic data, clean responsive UI, input validation, navigation, Git use by more than one member). The billing guarantee follows patterns seen in Lago and OCA/contract and still needs to be tested on this codebase.
+## 9. Before submitting
+- Confirm the submission format and deadline with the organisers.
+- Run every acceptance check in section 7 from a clean clone.
