@@ -55,10 +55,10 @@ function NavItemLink({ item, onChoose }: { item: NavItem; onChoose?: () => void 
 
 function Navigation({ items, onChoose }: { items: NavItem[]; onChoose?: () => void }) {
   const groups = Array.from(new Set(items.map((item) => groupFor(item.href))))
-  return <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4" aria-label="Primary navigation">
-    {groups.map((group) => <section key={group} className="mb-5">
-      <p className="mb-1.5 px-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted">{group}</p>
-      <div className="grid gap-0.5">{items.filter((item) => groupFor(item.href) === group).map((item) => <NavItemLink key={item.href} item={item} onChoose={onChoose} />)}</div>
+  return <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-5" aria-label="Primary navigation">
+    {groups.map((group) => <section key={group} className="mb-6">
+      <p className="mb-2 px-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted">{group}</p>
+      <div className="grid gap-1">{items.filter((item) => groupFor(item.href) === group).map((item) => <NavItemLink key={item.href} item={item} onChoose={onChoose} />)}</div>
     </section>)}
   </nav>
 }
@@ -122,7 +122,7 @@ export function AppShell({ nav }: { nav: NavItem[] }) {
 
       <main className="rand-grid min-h-[calc(100vh-60px)] px-4 py-4 sm:px-6 sm:py-5 xl:px-8 xl:py-6">
         <div className="relative mx-auto max-w-[1440px]">
-          <nav aria-label="Breadcrumb" className="mb-4 flex min-w-0 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[11px] text-muted">
+          <nav aria-label="Breadcrumb" className="mb-6 flex min-w-0 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[11px] text-muted">
             {location.key !== 'default' && <button type="button" onClick={() => navigate(-1)} aria-label="Go back" title="Go back" className="mr-1 grid size-7 shrink-0 place-items-center rounded-md border border-line bg-paper text-ink transition hover:bg-surface"><ArrowLeft className="size-4" /></button>}
             <NavLink to={home} className="inline-flex items-center gap-1 hover:text-ink"><House className="size-3.5" /> Home</NavLink><ChevronRight className="size-3 shrink-0 opacity-50" /><span>{group}</span><ChevronRight className="size-3 shrink-0 opacity-50" /><span className="font-medium text-ink">{current?.label}</span>
           </nav>

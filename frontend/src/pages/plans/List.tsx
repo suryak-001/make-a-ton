@@ -37,7 +37,7 @@ export default function PlanList() {
         description={isAdmin ? 'How often a subscription bills, when it is on sale, and what customers or staff can do with it.' : 'Billing plans. Only an admin can change them.'}
         actions={isAdmin && <Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New plan</Link>}
       />
-      <div className="mb-4 flex gap-3">
+      <div className="mb-5 flex flex-wrap gap-3">
         <Input
           value={q}
           onChange={(e) => {

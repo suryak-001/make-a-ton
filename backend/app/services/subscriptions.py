@@ -190,7 +190,11 @@ def _apply(
     new_lines = _build_lines(db, plan, data.lines)
 
     sub.customer_id, sub.plan_id = data.customer_id, data.plan_id
-    sub.start_date, sub.expiry_date = data.start_date, data.expiry_date
+    expiry = data.expiry_date
+    if expiry is None and plan.auto_close:
+        # A plan that closes by itself needs an end date, or it would never close: one billing period from the start.
+        expiry = add_period(data.start_date, plan.billing_period)
+    sub.start_date, sub.expiry_date = data.start_date, expiry
     sub.payment_term_days, sub.validity_days, sub.notes = (
         data.payment_term_days,
         data.validity_days,

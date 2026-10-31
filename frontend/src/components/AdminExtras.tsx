@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { Link } from 'react-router'
 import { Card } from './ui'
+import { LIVE_MS } from '@/lib/queries'
 import { api } from '@/lib/api'
 import { formatDateTime, money } from '@/lib/format'
 import type { AgingBucket, Proof, SetupStep } from '@/lib/types'
 
 /** Points at the first setup step not done yet. It follows real data, so it moves on by itself and goes away when all are done. */
 export function SetupBanner() {
-  const steps = useQuery({ queryKey: ['/dashboard', 'setup'], queryFn: () => api.get<SetupStep[]>('/dashboard/setup') })
+  const steps = useQuery({ refetchInterval: LIVE_MS, refetchOnWindowFocus: true, queryKey: ['/dashboard', 'setup'], queryFn: () => api.get<SetupStep[]>('/dashboard/setup') })
   const next = steps.data?.find((step) => !step.done)
   if (!steps.data || !next) return null
   const done = steps.data.filter((step) => step.done).length
@@ -27,7 +28,7 @@ const BUCKET_TONE: Record<string, string> = { current: 'bg-green', '1-30': 'bg-y
 
 /** Money still owed, by how long past due. Each bucket opens the overdue list. */
 export function AgingCard() {
-  const aging = useQuery({ queryKey: ['/dashboard', 'aging'], queryFn: () => api.get<AgingBucket[]>('/dashboard/aging') })
+  const aging = useQuery({ refetchInterval: LIVE_MS, refetchOnWindowFocus: true, queryKey: ['/dashboard', 'aging'], queryFn: () => api.get<AgingBucket[]>('/dashboard/aging') })
   const max = Math.max(1, ...(aging.data ?? []).map((bucket) => Number(bucket.amount)))
   return (
     <Card className="p-5">
@@ -50,7 +51,7 @@ export function AgingCard() {
 
 /** The claims, measured: how much data, that nothing was billed twice, and how long these checks took. */
 export function ProofPanel() {
-  const proof = useQuery({ queryKey: ['/dashboard', 'proof'], queryFn: () => api.get<Proof>('/dashboard/proof') })
+  const proof = useQuery({ refetchInterval: LIVE_MS, refetchOnWindowFocus: true, queryKey: ['/dashboard', 'proof'], queryFn: () => api.get<Proof>('/dashboard/proof') })
   const data = proof.data
   const clean = data?.duplicate_invoice_periods === 0
   const facts: [string, string][] = data ? [

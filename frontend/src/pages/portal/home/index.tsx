@@ -6,6 +6,7 @@ import { ActionButtons } from '@/components/ActionButtons'
 import { DataTable } from '@/components/DataTable'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Card, PageHeader } from '@/components/ui'
+import { LIVE_MS } from '@/lib/queries'
 import { api } from '@/lib/api'
 import { formatDate, money } from '@/lib/format'
 import type { PortalHome, PortalSubscription } from '@/lib/types'
@@ -23,7 +24,7 @@ export default function PortalHomePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   // The key starts with the portal-subscriptions path so pausing or renewing here refreshes this screen too.
-  const home = useQuery({ queryKey: ['/portal-subscriptions', 'home'], queryFn: () => api.get<PortalHome>('/dashboard/portal') })
+  const home = useQuery({ refetchInterval: LIVE_MS, refetchOnWindowFocus: true, queryKey: ['/portal-subscriptions', 'home'], queryFn: () => api.get<PortalHome>('/dashboard/portal') })
   const data = home.data
   if (home.isPending) return <><PageHeader title="Home" /><Card className="h-40 animate-pulse bg-paper" /></>
   if (!data) return <><PageHeader title="Home" /><p className="text-sm text-danger">We couldn’t load your account. Try again in a moment.</p></>

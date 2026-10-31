@@ -2,6 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type Page, qs } from './api'
 import type { Plan, Product, TaxRule } from './types'
 
+/** Dashboards re-read their numbers this often (only while the tab is open and visible). */
+export const LIVE_MS = 30_000
+
 /** All products for pickers (one page of 100 is plenty for a catalogue picker). */
 export function useProducts() {
   return useQuery({

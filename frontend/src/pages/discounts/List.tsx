@@ -38,7 +38,7 @@ export default function DiscountList() {
         description="An eligible discount appears on the next invoice by itself, and stops when it expires or its limit is used up."
         actions={<Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New discount</Link>}
       />
-      <div className="mb-4 flex gap-3">
+      <div className="mb-5 flex flex-wrap gap-3">
         <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search discounts…" aria-label="Search discounts" className="max-w-sm" />
         <Select value={active} onChange={(e) => { setActive(e.target.value); setPage(1) }} aria-label="Filter by status" className="w-40">
           <option value="">All</option>

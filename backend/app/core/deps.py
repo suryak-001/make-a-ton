@@ -20,7 +20,7 @@ Db = Annotated[Session, Depends(get_db)]
 def get_current_user(request: Request, db: Db) -> User:
     user_id = read_session(request.cookies.get(SESSION_COOKIE))
     user = db.get(User, user_id) if user_id else None
-    if user is None:
+    if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not signed in")
     return user
 

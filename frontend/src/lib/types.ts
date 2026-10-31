@@ -11,7 +11,7 @@ export type Customer = {
   created_at: string
 }
 
-export type UserRow = { id: number; email: string; name: string; role: Role; created_at: string }
+export type UserRow = { id: number; email: string; name: string; role: Role; created_at: string; is_active: boolean }
 
 export type Tax = { id: number; name: string; kind: 'PERCENT' | 'FIXED'; rate: string }
 /** A tax rule as the Taxes screens see it (a product's `default_taxes` only carry the part above). */

@@ -24,3 +24,6 @@ share/
 final check.md
 system_architecture_and_features.md
 system_architecture_and_features.html
+
+# local tooling
+.claude/

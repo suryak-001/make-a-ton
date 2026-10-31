@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import { DataTable } from './DataTable'
 import { StatusBadge } from './StatusBadge'
 import { Button, Card } from './ui'
+import { LIVE_MS } from '@/lib/queries'
 import { api, qs } from '@/lib/api'
 import { formatDate, money } from '@/lib/format'
 import { METRIC_DEFINITIONS, type MetricKey } from '@/lib/metrics'
@@ -44,9 +45,9 @@ export function FinanceOverview({ filters = {} }: { filters?: ReportFilters }) {
   const navigate = useNavigate()
   const [months, setMonths] = useState(6)
   const suffix = qs(filters)
-  const summary = useQuery({ queryKey: ['/reports', 'summary', filters], queryFn: () => api.get<Summary>(`/reports/summary${suffix}`) })
-  const revenue = useQuery({ queryKey: ['/reports', 'revenue', filters], queryFn: () => api.get<RevenuePoint[]>(`/reports/revenue-by-month${suffix}`) })
-  const overdue = useQuery({ queryKey: ['/reports', 'overdue', filters], queryFn: () => api.get<Invoice[]>(`/reports/overdue${qs({ plan_id: filters.plan_id, customer_id: filters.customer_id })}`) })
+  const summary = useQuery({ refetchInterval: LIVE_MS, refetchOnWindowFocus: true, queryKey: ['/reports', 'summary', filters], queryFn: () => api.get<Summary>(`/reports/summary${suffix}`) })
+  const revenue = useQuery({ refetchInterval: LIVE_MS, refetchOnWindowFocus: true, queryKey: ['/reports', 'revenue', filters], queryFn: () => api.get<RevenuePoint[]>(`/reports/revenue-by-month${suffix}`) })
+  const overdue = useQuery({ refetchInterval: LIVE_MS, refetchOnWindowFocus: true, queryKey: ['/reports', 'overdue', filters], queryFn: () => api.get<Invoice[]>(`/reports/overdue${qs({ plan_id: filters.plan_id, customer_id: filters.customer_id })}`) })
   const GO: Record<string, string> = { active: '/subscriptions?status=ACTIVE', mrr: '/subscriptions?status=ACTIVE', invoiced: '/invoices', collected: '/payments' }
   const primary: [string, string, string, MetricKey][] = summary.data ? [
     ['Active subscriptions', String(summary.data.active_subscriptions), 'Live agreements', 'active'],

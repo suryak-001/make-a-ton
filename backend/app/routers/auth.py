@@ -76,6 +76,10 @@ def login(body: LoginIn, response: Response, db: Db):
     ok = verify_password(body.password, user.password_hash if user else _DUMMY_HASH)
     if not user or not ok:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password.")
+    if not user.is_active:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "This account has been switched off. Ask an admin to turn it back on."
+        )
     set_session_cookie(response, user.id)
     return user_out(user)
 

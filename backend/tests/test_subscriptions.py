@@ -3,9 +3,11 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
+from app.enums import BillingPeriod
 from app.enums import SubscriptionStatus as S
 from app.models import Subscription, SubscriptionEvent
 from app.services import subscriptions as svc
+from app.services.dates import add_period
 
 TODAY = date.today()
 
@@ -359,3 +361,13 @@ def test_money_is_decimal_exact(client, users, catalog, login, db):
         lines=[{"product_id": catalog.crm.id, "variant_id": catalog.odoo.id, "quantity": 3}],
     )
     assert Decimal(sub["total"]) == Decimal("1560.00") * 3 * Decimal("1.18")
+
+
+def test_a_plan_that_closes_by_itself_gets_an_end_date_when_none_is_given(client, users, catalog, login):
+    login("staff@t.test")
+    payload = body(catalog, catalog.strict, lines=[{"product_id": catalog.crm.id, "quantity": 5}])
+    sub = client.post("/api/subscriptions", json=payload).json()
+    assert sub["expiry_date"] == str(add_period(TODAY, BillingPeriod.YEARLY))
+    # a plan that does not close by itself stays open-ended
+    open_ended = client.post("/api/subscriptions", json=body(catalog)).json()
+    assert open_ended["expiry_date"] is None

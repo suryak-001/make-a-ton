@@ -2,6 +2,11 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Check, Copy, MessageCircle, Plus } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { DataTable, Pagination } from '@/components/DataTable'
+import { RowActions } from '@/components/RowActions'
+import { StatusSelect } from '@/components/StatusSelect'
+import { useAuth } from '@/auth/context'
+import { useRowMutations } from '@/lib/entity'
+import { Power } from 'lucide-react'
 import { Alert, FormField, Input, Select } from '@/components/forms'
 import { PasswordField } from '@/components/PasswordField'
 import { Modal } from '@/components/Modal'
@@ -15,6 +20,8 @@ import type { UserRow } from '@/lib/types'
 const ROLE_TONE = { ADMIN: 'bg-brand/10 text-brand', STAFF: 'bg-sky-50 text-sky-800', CUSTOMER: 'bg-surface text-muted' } as const
 
 export default function UsersPage() {
+  const { user: me } = useAuth()
+  const { setActive, error: switchError } = useRowMutations('/users')
   const [q, setQ] = useState('')
   const [role, setRole] = useState('')
   const [page, setPage] = useState(1)
@@ -34,7 +41,7 @@ export default function UsersPage() {
         description="Only an admin can add staff. Customers create their own accounts when they sign up."
         actions={<Button onClick={() => setAdding(true)}><Plus className="mr-1.5 size-4" /> Add staff member</Button>}
       />
-      <div className="mb-4 flex gap-3">
+      <div className="mb-5 flex flex-wrap gap-3">
         <Input
           value={q}
           onChange={(e) => {
@@ -60,6 +67,7 @@ export default function UsersPage() {
           <option value="CUSTOMER">Customer</option>
         </Select>
       </div>
+      {switchError && <div className="mb-3"><Alert>{switchError}</Alert></div>}
       <DataTable
         loading={list.isPending}
         rows={list.data?.items}
@@ -69,7 +77,9 @@ export default function UsersPage() {
           { header: 'Email', cell: (u) => u.email },
           { header: 'Role', cell: (u) => <Badge className={ROLE_TONE[u.role]}>{u.role.charAt(0) + u.role.slice(1).toLowerCase()}</Badge> },
           { header: 'Joined', cell: (u) => formatDate(u.created_at) },
+          { header: 'Access', cell: (u) => <StatusSelect active={u.is_active} disabled={u.role === 'ADMIN' || u.id === me?.id || setActive.isPending} onChange={(next) => setActive.mutate({ id: u.id, active: next })} /> },
         ]}
+        actions={(u) => u.role === 'ADMIN' || u.id === me?.id ? null : <RowActions label={`Actions for ${u.name}`} actions={[{ label: u.is_active ? 'Switch off access' : 'Switch on access', icon: Power, danger: u.is_active, onSelect: () => setActive.mutate({ id: u.id, active: !u.is_active }) }]} />}
       />
       {list.data && <Pagination page={page} pageSize={list.data.page_size} total={list.data.total} onPage={setPage} />}
 

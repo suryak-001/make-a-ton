@@ -37,7 +37,7 @@ export default function ProductList() {
         description={isAdmin ? 'What you sell, with variants that change the price.' : 'What you sell. Only an admin can change products.'}
         actions={isAdmin && <Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New product</Link>}
       />
-      <div className="mb-4 flex gap-3">
+      <div className="mb-5 flex flex-wrap gap-3">
         <Input
           value={q}
           onChange={(e) => {

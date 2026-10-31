@@ -5,18 +5,22 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.deps import AdminUser, Db
-from app.core.errors import Conflict
+from app.core.errors import Conflict, Invalid
+from app.core.lookup import get_or_404
 from app.core.pagination import Page, Pages, like_pattern, paginate
 from app.core.security import hash_password
 from app.enums import Role
 from app.models import User
+from app.schemas.active import ActiveIn
 from app.schemas.people import StaffCreate, UserListOut
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 
 def _out(u: User) -> UserListOut:
-    return UserListOut(id=u.id, email=u.email, name=u.name, role=u.role, created_at=u.created_at)
+    return UserListOut(
+        id=u.id, email=u.email, name=u.name, role=u.role, created_at=u.created_at, is_active=u.is_active
+    )
 
 
 @router.get("", response_model=Page[UserListOut])
@@ -48,4 +52,17 @@ def add_staff(body: StaffCreate, db: Db, _: AdminUser):
     except IntegrityError:
         db.rollback()
         raise Conflict("An account with this email already exists.", field="email") from None
+    return _out(user)
+
+
+@router.patch("/{user_id}/active", response_model=UserListOut)
+def set_user_active(user_id: int, body: ActiveIn, db: Db, admin: AdminUser):
+    """Switch a staff member or customer on or off. An admin can't switch off their own account."""
+    user = get_or_404(db, User, user_id)
+    if user.id == admin.id:
+        raise Invalid("You can't switch off your own account.")
+    if user.role == Role.ADMIN:
+        raise Invalid("Admin accounts can't be switched off here.")
+    user.is_active = body.active
+    db.commit()
     return _out(user)

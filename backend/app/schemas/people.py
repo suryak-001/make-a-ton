@@ -20,6 +20,7 @@ class UserListOut(BaseModel):
     name: str
     role: Role
     created_at: datetime
+    is_active: bool = True
 
 
 class CustomerIn(BaseModel):

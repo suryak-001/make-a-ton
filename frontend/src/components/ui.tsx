@@ -47,10 +47,10 @@ export function Badge({ children, className }: { children: ReactNode; className?
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   if (useInModal()) return null // the pop-up has its own title
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
       <div>
         <h1 className="text-[22px] font-medium leading-tight tracking-[-0.03em]">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-[13px] text-muted">{description}</p>}
+        {description && <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-muted">{description}</p>}
       </div>
       {actions && <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0">{actions}</div>}
     </div>

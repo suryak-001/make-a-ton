@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { DataTable } from './DataTable'
 import { useToast } from './Toast'
 import { Button, Card } from './ui'
+import { LIVE_MS } from '@/lib/queries'
 import { api, ApiError } from '@/lib/api'
 import { formatDate, formatDateTime, money } from '@/lib/format'
 import type { WorkQueue as Queue } from '@/lib/types'
@@ -25,7 +26,7 @@ export function WorkQueue() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { toast } = useToast()
-  const queue = useQuery({ queryKey: ['/dashboard', 'queue'], queryFn: () => api.get<Queue>('/dashboard/queue') })
+  const queue = useQuery({ refetchInterval: LIVE_MS, refetchOnWindowFocus: true, queryKey: ['/dashboard', 'queue'], queryFn: () => api.get<Queue>('/dashboard/queue') })
   const remind = useMutation({
     mutationFn: (id: number) => api.post(`/dashboard/remind/${id}`),
     onSuccess: () => { toast('Reminder sent'); qc.invalidateQueries({ queryKey: ['/dashboard', 'queue'] }) },

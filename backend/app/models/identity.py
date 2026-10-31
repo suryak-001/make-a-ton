@@ -17,6 +17,8 @@ class User(Base):
     role: Mapped[Role] = mapped_column(Enum(Role, name="role"), default=Role.CUSTOMER)
     created_at: Mapped[Timestamp] = mapped_column(default=utcnow)
     # Set when an admin chose the first password: the person must replace it on first sign-in.
+    # False once an admin has switched the account off: it can no longer sign in or use a session.
+    is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
     must_change_password: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     customer: Mapped["Customer | None"] = relationship(back_populates="user")
