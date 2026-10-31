@@ -35,7 +35,7 @@ export default function PlanList() {
       <PageHeader
         title="Plans"
         description={isAdmin ? 'How often a subscription bills, when it is on sale, and what customers or staff can do with it.' : 'Billing plans. Only an admin can change them.'}
-        actions={isAdmin && <Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New plan</Link>}
+        actions={isAdmin && <Link to="/plans/new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New plan</Link>}
       />
       <div className="mb-5 flex flex-wrap gap-3">
         <Input
@@ -66,7 +66,7 @@ export default function PlanList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(p) => p.id}
-        onRowClick={(p) => navigate(String(p.id))}
+        onRowClick={(p) => navigate(`/plans/${p.id}`)}
         empty="No plans found."
         flashId={flash}
         actions={isAdmin ? (p) => <EntityRowMenu path="/plans" id={p.id} name={p.name} active={p.active} label="this plan" /> : undefined}

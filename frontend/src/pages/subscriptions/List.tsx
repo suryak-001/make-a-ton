@@ -70,7 +70,7 @@ export default function SubscriptionList() {
               </Button>
             )}
             <ExportLink path="/subscriptions" params={{ q: debounced, status, plan_id: planId }} />
-            <Link to="new" className={buttonClass()}>
+            <Link to="/subscriptions/new" className={buttonClass()}>
               New subscription
             </Link>
           </>
@@ -118,7 +118,7 @@ export default function SubscriptionList() {
       />
       {list.data && <Pagination page={page} pageSize={list.data.page_size} total={list.data.total} onPage={setPage} />}
       <Sheet open={Boolean(selectedId)} onClose={() => setSelectedId(undefined)} title={selected.data?.number ?? 'Subscription detail'} subtitle="Review the agreement without leaving the list.">
-        {selected.isPending ? <p className="text-[13px] text-muted">Loading subscription…</p> : selected.data ? <SubscriptionView staff sub={selected.data} actions={<div className="grid gap-3"><ActionButtons sub={selected.data} base="/subscriptions" /><Link to={`${selected.data.id}`} className={buttonClass('outline', 'w-full')}>Open full record →</Link></div>} /> : <Alert>Could not load this subscription.</Alert>}
+        {selected.isPending ? <p className="text-[13px] text-muted">Loading subscription…</p> : selected.data ? <SubscriptionView staff sub={selected.data} actions={<div className="grid gap-3"><ActionButtons sub={selected.data} base="/subscriptions" /><Link to={`/subscriptions/${selected.data.id}`} className={buttonClass('outline', 'w-full')}>Open full record →</Link></div>} /> : <Alert>Could not load this subscription.</Alert>}
       </Sheet>
     </>
   )

@@ -40,6 +40,7 @@ from app.schemas.reconciliation import (
     StatementProblem,
     StatementRowOut,
 )
+from app.services.formatting import rupees
 from app.services.payments import record_payment
 
 MAX_ROWS = 2000
@@ -286,14 +287,6 @@ class OpenInvoice:
         )
 
 
-def _rupees(amount: Decimal) -> str:
-    """₹1,23,456.00: Indian digit grouping, as the screens show money."""
-    whole, cents = f"{amount:.2f}".split(".")
-    head, tail = whole[:-3], whole[-3:]
-    groups = [head[max(i - 2, 0) : i] for i in range(len(head), 0, -2)][::-1]
-    return "₹" + ",".join([*groups, tail] if head else [tail]) + "." + cents
-
-
 def _invoice_key(text: str) -> tuple[int, int] | None:
     found = INVOICE_REF.search(text)
     return (int(found.group(1)), int(found.group(2))) if found else None
@@ -390,13 +383,13 @@ class _Matcher:
             return (
                 "unmatched",
                 None,
-                f"Mentions {invoice.number} but pays more than its {_rupees(left)} outstanding.",
+                f"Mentions {invoice.number} but pays more than its {rupees(left)} outstanding.",
                 None,
             )
         reason = (
             "Invoice number and amount match."
             if amount == left
-            else f"Invoice number matches. Part payment: {_rupees(left - amount)} will still be owed."
+            else f"Invoice number matches. Part payment: {rupees(left - amount)} will still be owed."
         )
         return "matched", "high", reason, self.take(invoice, amount)
 
@@ -556,6 +549,15 @@ def apply(db: Session, items: list[ApplyItemIn], user: User) -> ApplyOut:
             continue
         recorded_amount += item.amount
         results.append(_result(item, "recorded", f"Recorded against {number}.", number))
+    # The balance after every line went in, so a screen showing several lines for one invoice shows the same figure.
+    paid_into = {
+        item.invoice_id for item, result in zip(items, results, strict=True) if result.status == "recorded"
+    }
+    invoices = db.scalars(select(Invoice).where(Invoice.id.in_(paid_into))) if paid_into else []
+    balances = {invoice.id: invoice.total - invoice.amount_paid for invoice in invoices}
+    for item, result in zip(items, results, strict=True):
+        if result.status == "recorded":
+            result.outstanding = balances[item.invoice_id]
     count = Counter(r.status for r in results)
     return ApplyOut(
         recorded=count["recorded"],

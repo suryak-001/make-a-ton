@@ -17,6 +17,7 @@ from app.schemas.money import BillingRunIn, BillingRunOut, InvoiceOut
 from app.services import invoices as svc
 from app.services.billing import rebill_invoice, run_billing
 from app.services.company import get_company
+from app.services.formatting import long_date, rupees
 from app.services.invoice_pdf import invoice_filename, render_invoice_pdf
 from app.services.invoice_queries import overdue_conditions, present_conditions
 from app.services.money_views import INVOICE_LOAD, invoice_out, load_invoice
@@ -172,26 +173,48 @@ def send(invoice_id: int, db: Db, _: StaffUser):
 
 
 def _print_row(line) -> str:
-    cells = (line.description, line.quantity, line.unit_price, line.tax_amount, line.total)
+    cells = (
+        line.description,
+        line.quantity,
+        rupees(line.unit_price),
+        rupees(line.discount_amount),
+        rupees(line.tax_amount),
+        rupees(line.total),
+    )
     return "<tr>" + "".join(f"<td>{escape(str(cell))}</td>" for cell in cells) + "</tr>"
 
 
-def _print_html(invoice: InvoiceOut) -> str:
-    """A print-friendly page. Everything that came from the database is escaped."""
-    number = escape(invoice.number or "Draft")
+def _print_html(invoice: InvoiceOut, company: str) -> str:
+    """A print-friendly page with what the invoice screen shows. Everything that came from the database is escaped."""
+    number = escape(invoice.number or f"Draft #{invoice.id}")
+    status = invoice.status.value.title() + (" · overdue" if invoice.overdue else "")
     rows = "".join(_print_row(line) for line in invoice.lines)
-    return f"""<!doctype html><html><head><title>{number}</title><style>
+    totals = [
+        ("Subtotal", invoice.subtotal),
+        ("Discount", -invoice.discount_total),
+        ("Tax", invoice.tax_total),
+    ]
+    paid = [("Paid", invoice.amount_paid), ("Outstanding", invoice.outstanding)]
+    return f"""<!doctype html><html><head><meta charset="utf-8"><title>{number}</title><style>
     body{{font:14px system-ui;max-width:900px;margin:40px auto;color:#18202f}} table{{width:100%;border-collapse:collapse;margin-top:32px}}
-    th,td{{padding:10px;border-bottom:1px solid #ddd;text-align:left}} .totals{{margin-left:auto;width:300px;margin-top:24px}}
+    th,td{{padding:10px;border-bottom:1px solid #ddd;text-align:left}} td:not(:first-child),th:not(:first-child){{text-align:right}}
+    .meta{{display:grid;grid-template-columns:repeat(4,auto);gap:4px 24px;margin-top:16px}} .meta span{{color:#6b7280;font-size:12px}}
+    .totals{{margin-left:auto;width:320px;margin-top:24px}} .totals p{{display:flex;justify-content:space-between;margin:6px 0}} .grand{{font-size:20px;font-weight:700;border-top:1px solid #ddd;padding-top:8px}}
     @media print{{button{{display:none}} body{{margin:0}}}}</style></head><body><button onclick="print()">Print / Save PDF</button>
-    <h1>Invoice {number}</h1><p>{escape(invoice.customer.name)} · {invoice.period_start} to {invoice.period_end}</p>
-    <table><thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>Tax</th><th>Total</th></tr></thead><tbody>{rows}</tbody></table>
-    <div class="totals"><p>Subtotal: {invoice.subtotal}</p><p>Discount: {invoice.discount_total}</p><p>Tax: {invoice.tax_total}</p><h2>Total: {invoice.total}</h2></div></body></html>"""
+    <p>{escape(company)}</p><h1>Invoice {number}</h1><p><strong>{escape(status)}</strong></p>
+    <p>{escape(invoice.customer.name)} · {escape(invoice.customer.email)}</p>
+    <div class="meta"><span>Billing period</span><span>Invoice date</span><span>Due date</span><span>Subscription</span>
+    <b>{long_date(invoice.period_start)} – {long_date(invoice.period_end)}</b><b>{long_date(invoice.invoice_date)}</b>
+    <b>{long_date(invoice.due_date)}</b><b>{escape(invoice.subscription.number)}</b></div>
+    <table><thead><tr><th>Description</th><th>Qty</th><th>Unit price</th><th>Discount</th><th>Tax</th><th>Total</th></tr></thead><tbody>{rows}</tbody></table>
+    <div class="totals">{"".join(f"<p><span>{label}</span><span>{rupees(value)}</span></p>" for label, value in totals)}
+    <p class="grand"><span>Total</span><span>{rupees(invoice.total)}</span></p>
+    {"".join(f"<p><span>{label}</span><span>{rupees(value)}</span></p>" for label, value in paid)}</div></body></html>"""
 
 
 @router.get("/{invoice_id}/print", response_class=HTMLResponse)
 def print_invoice(invoice_id: int, db: Db, _: StaffUser):
-    return HTMLResponse(_print_html(invoice_out(load_invoice(db, invoice_id))))
+    return HTMLResponse(_print_html(invoice_out(load_invoice(db, invoice_id)), get_company(db).name))
 
 
 def pdf_response(db, invoice) -> Response:

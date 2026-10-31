@@ -29,7 +29,7 @@ export function EntityRowMenu({ path, id, name, active, label }: Props) {
         label={`Actions for ${name}`}
         actions={standardActions({
           active,
-          onEdit: () => navigate(String(id)),
+          onEdit: () => navigate(`${path}/${id}`),
           onToggle: active === undefined ? undefined : () => setActive.mutate({ id, active: !active }),
           onDelete: () => { clearError(); setAsking(true) },
         })}

@@ -292,7 +292,7 @@ export type ReconcileResult = {
   already_recorded: number
   failed: number
   amount_recorded: string
-  results: { ref: string; status: 'recorded' | 'already_recorded' | 'failed'; message: string; invoice_number: string | null }[]
+  results: { ref: string; status: 'recorded' | 'already_recorded' | 'failed'; message: string; invoice_number: string | null; outstanding: string | null }[]
 }
 
 export type AgingBucket = { key: string; label: string; count: number; amount: string }

@@ -36,7 +36,7 @@ export default function DiscountList() {
       <PageHeader
         title="Discounts"
         description="An eligible discount appears on the next invoice by itself, and stops when it expires or its limit is used up."
-        actions={<Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New discount</Link>}
+        actions={<Link to="/discounts/new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New discount</Link>}
       />
       <div className="mb-5 flex flex-wrap gap-3">
         <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search discounts…" aria-label="Search discounts" className="max-w-sm" />
@@ -50,7 +50,7 @@ export default function DiscountList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(d) => d.id}
-        onRowClick={(d) => navigate(String(d.id))}
+        onRowClick={(d) => navigate(`/discounts/${d.id}`)}
         empty="No discounts found."
         flashId={flash}
         actions={(d) => <EntityRowMenu path="/discounts" id={d.id} name={d.name} active={d.active} label="this discount" />}

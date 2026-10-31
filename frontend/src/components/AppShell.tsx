@@ -19,7 +19,7 @@ const groupFor = (href: string) => {
   if (href.includes('/dashboard') || href.includes('/reports') || href === '/portal/home') return 'Overview'
   if (href.includes('/subscriptions') || href.includes('/customers') || href.includes('/quotation')) return 'Sales'
   if (href.includes('/products') || href.includes('/plans')) return 'Catalog'
-  if (href.includes('/invoices') || href.includes('/payments') || href.includes('/reconciliation')) return 'Billing'
+  if (href.includes('/invoices') || href.includes('/billing-run') || href.includes('/payments') || href.includes('/reconciliation')) return 'Billing'
   return 'Configuration'
 }
 
@@ -80,8 +80,10 @@ export function AppShell({ nav }: { nav: NavItem[] }) {
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const items = useMemo(() => user ? nav.filter((item) => item.roles.includes(user.role)) : [], [nav, user])
-  const current = [...items].sort((a, b) => b.href.length - a.href.length).find((item) => location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)) ?? items[0]
-  const group = current ? groupFor(current.href) : 'Workspace'
+  const current = [...items].sort((a, b) => b.href.length - a.href.length).find((item) => location.pathname === item.href || location.pathname.startsWith(`${item.href}/`))
+  // Pages outside the menu (the profile) name themselves rather than borrowing the first menu entry.
+  const label = current?.label ?? (location.pathname.endsWith('/profile') ? 'Your profile' : 'Workspace')
+  const group = current ? groupFor(current.href) : 'Account'
 
   useEffect(() => {
     if (!drawerOpen) return
@@ -115,7 +117,7 @@ export function AppShell({ nav }: { nav: NavItem[] }) {
       <header className="sticky top-0 z-30 flex h-[60px] items-center gap-3 border-b border-line bg-paper/92 px-4 backdrop-blur-xl sm:px-6 xl:px-8">
         <button type="button" onClick={() => setDrawerOpen(true)} className="grid size-9 shrink-0 place-items-center rounded-md border border-line text-muted hover:bg-surface hover:text-ink xl:hidden" aria-label="Open navigation"><Menu className="size-[18px]" /></button>
         <div className="hidden sm:block xl:hidden"><BrandMark compact /></div>
-        <div className="min-w-0 flex-1 sm:border-l sm:border-line sm:pl-3 xl:border-0 xl:pl-0"><p className="truncate text-[13px] font-medium">{current?.label ?? 'Workspace'}</p><p className="hidden truncate text-[10px] text-muted sm:block">{group} · {ROLE_LABEL[user.role]}</p></div>
+        <div className="min-w-0 flex-1 sm:border-l sm:border-line sm:pl-3 xl:border-0 xl:pl-0"><p className="truncate text-[13px] font-medium">{label}</p><p className="hidden truncate text-[10px] text-muted sm:block">{group} · {ROLE_LABEL[user.role]}</p></div>
         <CommandPalette items={items} />
         <AccountMenu profile={profile} />
       </header>
@@ -124,7 +126,7 @@ export function AppShell({ nav }: { nav: NavItem[] }) {
         <div className="relative mx-auto max-w-[1440px]">
           <nav aria-label="Breadcrumb" className="mb-6 flex min-w-0 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[11px] text-muted">
             {location.key !== 'default' && <button type="button" onClick={() => navigate(-1)} aria-label="Go back" title="Go back" className="mr-1 grid size-7 shrink-0 place-items-center rounded-md border border-line bg-paper text-ink transition hover:bg-surface"><ArrowLeft className="size-4" /></button>}
-            <NavLink to={home} className="inline-flex items-center gap-1 hover:text-ink"><House className="size-3.5" /> Home</NavLink><ChevronRight className="size-3 shrink-0 opacity-50" /><span>{group}</span><ChevronRight className="size-3 shrink-0 opacity-50" /><span className="font-medium text-ink">{current?.label}</span>
+            <NavLink to={home} className="inline-flex items-center gap-1 hover:text-ink"><House className="size-3.5" /> Home</NavLink><ChevronRight className="size-3 shrink-0 opacity-50" /><span>{group}</span><ChevronRight className="size-3 shrink-0 opacity-50" /><span className="font-medium text-ink">{label}</span>
           </nav>
           <div className="page-enter"><Outlet /></div>
         </div>

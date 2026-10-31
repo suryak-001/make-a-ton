@@ -13,6 +13,7 @@ from app.routers.invoices import _print_html, pdf_response
 from app.schemas.gateway import CheckoutOut, VerifyIn
 from app.schemas.money import InvoiceOut
 from app.services import gateway
+from app.services.company import get_company
 from app.services.money_views import INVOICE_LOAD, invoice_out
 
 router = APIRouter(prefix="/api/portal-invoices", tags=["portal-invoices"])
@@ -65,7 +66,7 @@ def get_mine(invoice_id: int, db: Db, user: CustomerUser):
 
 @router.get("/{invoice_id}/print", response_class=HTMLResponse)
 def print_mine(invoice_id: int, db: Db, user: CustomerUser):
-    return HTMLResponse(_print_html(invoice_out(_mine(invoice_id, db, user))))
+    return HTMLResponse(_print_html(invoice_out(_mine(invoice_id, db, user)), get_company(db).name))
 
 
 @router.post("/{invoice_id}/checkout", response_model=CheckoutOut)

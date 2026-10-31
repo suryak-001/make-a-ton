@@ -63,6 +63,7 @@ class ApplyResultOut(BaseModel):
     status: Literal["recorded", "already_recorded", "failed"]
     message: str
     invoice_number: str | None
+    outstanding: Decimal | None = None  # the invoice's balance after this run, set on recorded lines
 
 
 class ApplyOut(BaseModel):

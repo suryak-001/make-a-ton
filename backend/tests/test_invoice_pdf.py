@@ -116,3 +116,27 @@ def test_a_long_invoice_runs_onto_more_pages(db, catalog, lines):
         )
     pdf = render_invoice_pdf(invoice, get_company(db))
     assert pdf.startswith(b"%PDF") and (b"/Count 2" in pdf) == (lines > 30)
+
+
+@pytest.mark.parametrize(
+    ("paid", "says", "never"),
+    [
+        ("0", "It is due on", "paid in full"),
+        ("100", "remaining INR", "paid in full"),
+        ("all", "paid in full", "due on"),
+    ],
+)
+def test_the_invoice_email_matches_what_is_still_owed(
+    client, users, catalog, login, db, monkeypatch, paid, says, never
+):
+    from tests.test_money_api import pay
+
+    sent = []
+    monkeypatch.setattr("app.services.invoices.send_mail", lambda *args, **kwargs: sent.append(args))
+    invoice = confirmed_invoice(db, catalog, number="PDF-6")
+    login("staff@t.test")
+    if paid != "0":
+        assert pay(client, invoice, invoice.total if paid == "all" else paid).status_code == 201
+    assert client.post(f"/api/invoices/{invoice.id}/send").status_code == 200
+    ((_, _, body),) = sent
+    assert says in body and never not in body

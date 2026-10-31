@@ -74,9 +74,21 @@ def send_invoice(db: Session, invoice_id: int) -> Invoice:
         invoice.customer.email,
         f"Invoice {invoice.number} from {company.name}",
         f"Hello {invoice.customer.name},\n\nYour invoice {invoice.number} for INR {invoice.total:,.2f} is attached "
-        f"as a PDF. It is due on {invoice.due_date:%d %b %Y}. You can also view and pay it in the customer portal.\n\n"
-        f"{company.name}",
+        f"as a PDF. {_balance_line(invoice)}\n\n{company.name}",
         attachments=[(invoice_filename(invoice), render_invoice_pdf(invoice, company), "application/pdf")],
     )
     invoice.sent_at = datetime.now(UTC)
     return invoice
+
+
+def _balance_line(invoice: Invoice) -> str:
+    """What the customer still has to do: nothing once it is paid, the balance after a part payment."""
+    outstanding = invoice.total - invoice.amount_paid
+    if invoice.status == InvoiceStatus.PAID or outstanding <= 0:
+        return "It has been paid in full. Thank you, there is nothing more to pay."
+    if invoice.amount_paid > 0:
+        return (
+            f"INR {invoice.amount_paid:,.2f} has been received; the remaining INR {outstanding:,.2f} is due on "
+            f"{invoice.due_date:%d %b %Y}. You can view and pay it in the customer portal."
+        )
+    return f"It is due on {invoice.due_date:%d %b %Y}. You can also view and pay it in the customer portal."

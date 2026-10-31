@@ -24,7 +24,7 @@ export default function PortalSubscriptionList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(s) => s.id}
-        onRowClick={(s) => navigate(String(s.id))}
+        onRowClick={(s) => navigate(`/portal/subscriptions/${s.id}`)}
         empty="You don’t have any subscriptions yet."
         columns={[
           { header: 'Number', cell: (s) => <span className="font-medium">{s.number}</span> },

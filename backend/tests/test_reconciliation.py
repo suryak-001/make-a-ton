@@ -188,6 +188,16 @@ def test_recording_pays_the_invoices_once_however_often_it_is_uploaded(client, u
     assert db.query(Payment).count() == 1
 
 
+def test_recorded_lines_report_the_balance_left_on_their_invoice(client, users, catalog, login, db):
+    invoice = numbered(db, catalog, 1)
+    login("staff@t.test")
+    base = {"invoice_id": invoice.id, "method": "UPI", "description": "x", "payment_date": str(TODAY)}
+    items = [{**base, "ref": "a" * 64, "amount": "100.00"}, {**base, "ref": "b" * 64, "amount": "50.00"}]
+    result = client.post("/api/reconciliation/apply", json={"items": items}).json()
+    # Both lines show the balance after the whole run, not after their own line.
+    assert [r["outstanding"] for r in result["results"]] == [str(invoice.total - Decimal("150.00"))] * 2
+
+
 def test_one_failing_line_does_not_stop_the_others(client, users, catalog, login, db):
     good = numbered(db, catalog, 1)
     cancelled = numbered(db, catalog, 2, number="SUB-T-2")

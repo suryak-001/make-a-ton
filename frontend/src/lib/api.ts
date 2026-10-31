@@ -9,7 +9,40 @@ export class ApiError extends Error {
   }
 }
 
-type ValidationItem = { loc?: (string | number)[]; msg?: string }
+type ValidationItem = { loc?: (string | number)[]; msg?: string; type?: string; ctx?: Record<string, unknown> }
+
+/** Pydantic's built-in checks speak like a library ("String should have at least 1 character"); say it plainly.
+ *  Messages the server wrote itself (value errors) are already meant for people and pass through. */
+function friendly(item: ValidationItem): string {
+  const ctx = item.ctx ?? {}
+  switch (item.type) {
+    case 'missing':
+      return 'This field is required.'
+    case 'string_too_short':
+      return ctx.min_length === 1 ? 'This field is required.' : `Use at least ${ctx.min_length} characters.`
+    case 'string_too_long':
+      return `Use at most ${ctx.max_length} characters.`
+    case 'greater_than':
+      return `Must be more than ${ctx.gt}.`
+    case 'greater_than_equal':
+      return `Must be ${ctx.ge} or more.`
+    case 'less_than':
+      return `Must be less than ${ctx.lt}.`
+    case 'less_than_equal':
+      return `Must be ${ctx.le} or less.`
+    case 'int_parsing':
+    case 'int_type':
+    case 'decimal_parsing':
+    case 'decimal_type':
+    case 'float_parsing':
+      return 'Enter a number.'
+    case 'date_parsing':
+    case 'date_from_datetime_parsing':
+    case 'date_type':
+      return 'Enter a valid date.'
+  }
+  return (item.msg ?? 'Invalid value').replace(/^Value error, /, '')
+}
 
 function parseError(status: number, detail: unknown): ApiError {
   if (typeof detail === 'string') return new ApiError(status, detail)
@@ -17,7 +50,7 @@ function parseError(status: number, detail: unknown): ApiError {
     const fields: Record<string, string> = {}
     const messages: string[] = []
     for (const item of detail as ValidationItem[]) {
-      const msg = (item.msg ?? 'Invalid value').replace(/^Value error, /, '')
+      const msg = friendly(item)
       const loc = (item.loc ?? []).filter((p) => p !== 'body')
       const key = loc.join('.')
       if (key && !(key in fields)) fields[key] = msg

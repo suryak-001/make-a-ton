@@ -47,7 +47,7 @@ export default function InvoiceList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(i) => i.id}
-        onRowClick={(i) => navigate(String(i.id))}
+        onRowClick={(i) => navigate(`/invoices/${i.id}`)}
         empty="No invoices match. Run billing when a subscription is due."
         columns={[
           { header: 'Invoice', cell: (i) => <span className="font-medium">{i.number ?? `Draft #${i.id}`}</span> },

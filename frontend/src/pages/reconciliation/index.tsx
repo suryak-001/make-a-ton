@@ -67,6 +67,16 @@ export default function ReconciliationPage() {
       }),
     onSuccess: (data) => {
       setResult(data)
+      // Each card shows its invoice's balance; after recording, show what is still owed, on every line for that invoice.
+      const balances = new Map<number, string>()
+      for (const r of data.results) {
+        const invoice = choices[r.ref]?.invoice
+        if (r.status === 'recorded' && invoice && r.outstanding !== null) balances.set(invoice.id, r.outstanding)
+      }
+      setChoices((current) => Object.fromEntries(Object.entries(current).map(([ref, choice]) => {
+        const outstanding = choice.invoice ? balances.get(choice.invoice.id) : undefined
+        return [ref, outstanding === undefined ? choice : { ...choice, invoice: { ...choice.invoice!, outstanding } }]
+      })))
       for (const key of ['/invoices', '/payments', '/reports', '/customers', 'customers']) qc.invalidateQueries({ queryKey: [key] })
       toast(`Recorded ${data.recorded} payment${data.recorded === 1 ? '' : 's'} (${money(data.amount_recorded)})`)
     },
@@ -293,7 +303,7 @@ function InvoiceCell({ row, choice, locked, onPick }: { row: StatementRow; choic
           <p className="text-[12px] text-muted">
             {invoice.customer_name} · {money(invoice.outstanding)} owed
           </p>
-          {!fits(row, invoice) && <p className="text-[12px] text-danger">More than this invoice’s balance.</p>}
+          {!locked && !fits(row, invoice) && <p className="text-[12px] text-danger">More than this invoice’s balance.</p>}
         </div>
       )}
       {!locked && (

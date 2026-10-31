@@ -32,7 +32,7 @@ export default function TaxList() {
       <PageHeader
         title="Taxes"
         description="Tax rules are attached to products and applied to every quote and invoice line automatically."
-        actions={<Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New tax</Link>}
+        actions={<Link to="/taxes/new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New tax</Link>}
       />
       <div className="mb-5 flex flex-wrap gap-3">
         <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search taxes…" aria-label="Search taxes" className="max-w-sm" />
@@ -46,7 +46,7 @@ export default function TaxList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(tax) => tax.id}
-        onRowClick={(tax) => navigate(String(tax.id))}
+        onRowClick={(tax) => navigate(`/taxes/${tax.id}`)}
         empty="No taxes found."
         flashId={flash}
         actions={(tax) => <EntityRowMenu path="/taxes" id={tax.id} name={tax.name} active={tax.active} label="this tax" />}

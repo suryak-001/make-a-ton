@@ -31,7 +31,7 @@ export default function TemplateList() {
       <PageHeader
         title="Quotation templates"
         description="A plan with ready-made product lines. Start a quote from one instead of building it from scratch."
-        actions={<Link to="new" className={buttonClass()}>New template</Link>}
+        actions={<Link to="/quotation-templates/new" className={buttonClass()}>New template</Link>}
       />
       <Input
         value={q}
@@ -47,7 +47,7 @@ export default function TemplateList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(t) => t.id}
-        onRowClick={(t) => navigate(String(t.id))}
+        onRowClick={(t) => navigate(`/quotation-templates/${t.id}`)}
         actions={(t) => <EntityRowMenu path="/quotation-templates" id={t.id} name={t.name} label="this template" />}
         empty="No templates yet."
         columns={[

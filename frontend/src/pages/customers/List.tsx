@@ -51,7 +51,7 @@ export default function CustomerList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(c) => c.id}
-        onRowClick={(c) => navigate(String(c.id))}
+        onRowClick={(c) => navigate(`/customers/${c.id}`)}
         actions={(c) => <EntityRowMenu path="/customers" id={c.id} name={c.name} label="this customer" />}
         empty={debounced ? 'No customers match your search.' : 'No customers yet.'}
         columns={[

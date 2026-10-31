@@ -178,6 +178,15 @@ def test_the_print_page_escapes_what_it_prints(client, users, catalog, db, login
     assert "<script>alert" not in html and "&lt;script&gt;" in html
 
 
+def test_the_print_page_shows_what_the_invoice_screen_shows(client, users, catalog, db, login):
+    invoice = confirmed_invoice(db, catalog)
+    login("staff@t.test")
+    pay(client, invoice, 1000)
+    html = client.get(f"/api/invoices/{invoice.id}/print").text
+    assert "Confirmed" in html and invoice.due_date.strftime("%d %b %Y") in html
+    assert "₹1,000.00" in html and "Outstanding" in html and str(invoice.period_start) not in html
+
+
 def test_a_cancelled_or_paid_invoice_cannot_be_cancelled_again(client, users, catalog, db, login):
     invoice = confirmed_invoice(db, catalog)
     login("staff@t.test")

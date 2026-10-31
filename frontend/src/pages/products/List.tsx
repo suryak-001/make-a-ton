@@ -35,7 +35,7 @@ export default function ProductList() {
       <PageHeader
         title="Products"
         description={isAdmin ? 'What you sell, with variants that change the price.' : 'What you sell. Only an admin can change products.'}
-        actions={isAdmin && <Link to="new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New product</Link>}
+        actions={isAdmin && <Link to="/products/new" className={buttonClass('primary', 'gap-1.5')}><Plus className="size-4" /> New product</Link>}
       />
       <div className="mb-5 flex flex-wrap gap-3">
         <Input
@@ -66,7 +66,7 @@ export default function ProductList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(p) => p.id}
-        onRowClick={(p) => navigate(String(p.id))}
+        onRowClick={(p) => navigate(`/products/${p.id}`)}
         empty="No products found."
         flashId={flash}
         actions={isAdmin ? (p) => <EntityRowMenu path="/products" id={p.id} name={p.name} active={p.active} label="this product" /> : undefined}
