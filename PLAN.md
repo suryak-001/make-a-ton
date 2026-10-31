@@ -88,14 +88,6 @@ Still to do together at kick-off: review the schema once and agree the API contr
 
 ---
 
-## 4b. Status
-
-**Sell side (Person B) is built and merged:** auth with signup and password reset, staff, customers, products and variants, plans, quotation templates, subscriptions with the state machine and history, the lifecycle job, and the customer portal subscriptions page. 83 backend tests pass. Remaining on the sell side is polish and cross-testing (step B9). **Money side (Person A) is the open work**: steps A1 to A9 below.
-
-Decisions the sell-side build follows, now part of the plan (details in `docs/PRD.md`): quote validity starts when the quote is sent, minimum quantity is checked per line, every state change writes a history event, portal pause, close and renew is core, and the invoice number is assigned at Confirm (A needs to make `Invoice.number` nullable).
-
----
-
 ## 5. Person A: Money side
 
 Every step ships the API, the screen and tests.
@@ -104,9 +96,9 @@ Every step ships the API, the screen and tests.
 |------|-------------|-----------|
 | **A1. Taxes** | Admin-only tax CRUD (API and screen). Taxes apply to subscription lines through the pricing engine | A tax created in the UI changes a quote total |
 | **A2. Discounts** | Admin-only discount CRUD with all rules (fixed or percent, minimum purchase or quantity, dates, usage limit, product or subscription scope) and screen | An invalid rule is refused with a field message |
-| **A3. Invoice generation** | `generate_invoice_for_period` in `services/billing.py`: snapshot lines, taxes, applicable discounts, `DiscountUsage` with the discount row locked, all in one transaction. Make `Invoice.number` nullable and assign the number from the `Sequence` table at Confirm (A5) | Same period twice returns the existing invoice. Twenty concurrent uses of a limit-5 discount apply exactly 5 times |
+| **A3. Invoice generation** | `generate_invoice_for_period` in `services/billing.py`: snapshot lines, taxes, applicable discounts, `DiscountUsage` with the discount row locked, number from the `Sequence` table, all in one transaction | Same period twice returns the existing invoice. Twenty concurrent uses of a limit-5 discount apply exactly 5 times |
 | **A4. Billing run and page** | `run_billing` (`<= as_of`, `with_for_update(skip_locked=True)`, catch-up, failures recorded and the run continues) and the **Billing Run page** with live counts that add up, a "Run again" button and an "as of" date | Run three times: count unchanged. Three periods behind gives exactly 3 invoices. The counts add up on screen |
-| **A5. Invoices** | List (filters: status, overdue, customer, dates), detail, confirm (assigns the invoice number), cancel, send (email), print page. Every transition is guarded | Illegal actions are refused by the server and hidden or disabled in the UI |
+| **A5. Invoices** | List (filters: status, overdue, customer, dates), detail, confirm, cancel, send (email), print page. Every transition is guarded | Illegal actions are refused by the server and hidden or disabled in the UI |
 | **A6. Payments** | Record method, amount, date and note against an invoice. Partial allowed, overpayment blocked, auto-mark Paid. Payments list | Outstanding updates immediately and the overdue badge shows |
 | **A7. Reports and dashboard** | SQL aggregates for the summary, overdue list and revenue by month, with filters. Dashboard with cards, chart, overdue table and metric definitions in tooltips | Every number comes from `func.sum` and `group_by`. Loads in under 2 seconds |
 | **A8. Portal invoices** | `/portal/invoices` endpoints scoped to the signed-in customer, plus the page and print view | Another customer's invoice returns 404 |
