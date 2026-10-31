@@ -9,6 +9,26 @@ backend/    FastAPI API, models, migrations, seed, pytest
 frontend/   React app (talks to the API through Vite's /api proxy)
 ```
 
+## For judges: see it working in five minutes
+
+1. Run the setup below (about five commands), then open the app and sign in with the demo logins.
+2. Follow this path. Everything needed is already in the demo data.
+
+| Step | Sign in as | Do this | What you should see |
+|------|-----------|---------|---------------------|
+| 1 | nobody | Sign up with a weak password, then a valid one; try the same email in capitals; use **Forgot password** | Rules named on the field, one account per email, reset link printed in the backend console |
+| 2 | Admin | **Users** → Add staff member → copy the invite | Staff are added only by the admin; the staff member must pick their own password at first sign-in |
+| 3 | Admin | **Products**, **Plans**, **Taxes**, **Discounts** | Variants (Odoo +560), plans that close, pause or renew, tax and discount rules |
+| 4 | Staff | **Quotation templates** → use the template for a customer → Draft → Quotation → Confirmed → Active | Lines, prices and taxes filled in by the server; history shows who did what |
+| 5 | Staff | **Billing run** (set a date two months ahead), run it twice | Invoices created from subscriptions; the second run creates none; counts add up |
+| 6 | Staff | Confirm, send and download an invoice PDF; record a payment; **Bank reconciliation** → Sample statement | Invoice number at confirm, PDF with PAID stamp, payments matched without double entry |
+| 7 | Customer (Priya) | **Home** → Pay the overdue invoice with card `4111 1111 1111 1111`, OTP `123456` | Invoice turns Paid; pause, renew and close appear only where the plan allows |
+| 8 | Admin | **Dashboard**, **Reports** | Active subscriptions, revenue, collected, overdue, aging, filters; every page answers in under two seconds even with `--big` data |
+
+**Where each part of the brief lives:** sign-up, roles and password rules (`/signup`, `/users`) · products and variants (`/products`) · plans (`/plans`) · quotation templates and the subscription life cycle (`/quotation-templates`, `/subscriptions`) · billing day and invoices (`/billing-run`, `/invoices`) · discounts (`/discounts`) · payments (`/payments`, `/reconciliation`) · finance view (`/dashboard`, `/reports`) · customer portal (`/portal/*`). The full click-through script is in [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md).
+
+**Honest limits:** emails (reset, invites, invoices) are printed in the backend console unless SMTP is configured; the payment gateway is a built-in test-mode simulator; the billing run is one request (35,000 invoices take about two minutes), fine for hundreds due at once.
+
 ## Setup
 
 Prerequisites: [uv](https://docs.astral.sh/uv/) (installs Python 3.13 for you), Node 22+, and a local PostgreSQL.
