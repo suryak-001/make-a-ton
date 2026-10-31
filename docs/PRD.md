@@ -39,14 +39,14 @@ Permissions are enforced on the server for every request. A customer asking for 
 ### 5.3 Plans (Admin)
 - FR-8 Plan: price, billing period (daily, weekly, monthly, yearly), minimum quantity, available-from and available-to dates.
 - FR-9 Per-plan switches: closes automatically when it ends, can be closed early, can be paused, can be renewed.
-- FR-10 A plan outside its dates cannot be chosen for a new subscription. A quantity below the minimum is rejected.
+- FR-10 A plan outside its dates cannot be chosen for a new subscription. A quantity below the plan minimum is rejected, checked per line on the server.
 
 ### 5.4 Quotation templates and subscriptions
-- FR-11 Quotation template: plan, product lines, validity in days. A quote started from a template copies its lines. Expiry = sent date + validity days.
+- FR-11 Quotation template: plan, product lines, validity in days. A quote started from a template copies its lines. The validity clock starts the day the quote is **sent** (Draft to Quotation): expiry = sent date + validity days. A stale quotation is expired by the lifecycle job.
 - FR-12 Subscription: unique number, customer, plan, start date, expiry date, payment terms, and lines (product, quantity, unit price, taxes, amount).
 - FR-13 States: Draft → Quotation → Confirmed → Active → Closed. Everyone on the team sees the current state.
 - FR-14 **(decision)** Add **Paused**. Reachable only from Active and only if the plan allows it. A paused subscription is not billed. On resume, billing continues from the resume date, so paused periods are not charged.
-- FR-15 One server function validates every transition. Illegal moves are rejected.
+- FR-15 One server function validates every transition and rejects illegal moves. Every change writes a history event (from, to, who, reason), which also holds the close reason. The customer portal uses the same function and the same plan-flag checks.
 - FR-16 Plans that close automatically move their subscriptions to Closed at expiry. Renewable plans offer a Renew action.
 
 ### 5.5 Billing and invoices
@@ -62,7 +62,7 @@ Permissions are enforced on the server for every request. A customer asking for 
 - FR-19 Daily, weekly, monthly and yearly all work. Dates are computed from the original start date, so a 31 Jan monthly subscription bills 28 Feb, 31 Mar, 30 Apr.
 - FR-20 Taxes come from Admin-set rules and are calculated automatically through the shared pricing module. Tax is computed per line and the invoice tax is the sum of the lines.
 - FR-21 Invoice states: Draft → Confirmed → Paid, plus Cancelled. Staff can confirm, cancel, send (email) and print (print-friendly page).
-- FR-22 The invoice number comes from the `Sequence` table inside the same transaction as the invoice, so a rolled-back run leaves no gap. Lines store a snapshot of product, price and tax, so later catalogue changes do not alter old invoices. Confirmed invoices are not edited, only cancelled.
+- FR-22 The invoice number is assigned when the invoice is **confirmed**, from the `Sequence` table, so cancelled drafts leave no gap. The number is empty until then, which needs `Invoice.number` to be nullable (one migration, step A3). Lines store a snapshot of product, price and tax, so later catalogue changes do not alter old invoices. Confirmed invoices are not edited, only cancelled.
 - FR-23 **(decision)** A cancelled invoice frees its period only through an explicit admin "re-bill" action. The Billing Run never rebills a cancelled period on its own.
 
 ### 5.6 Discounts (Admin only)
@@ -82,7 +82,7 @@ Permissions are enforced on the server for every request. A customer asking for 
 - FR-33 **(decision)** Revenue is shown as **Invoiced** and **Collected** separately. MRR is monthly-equivalent (yearly ÷ 12, weekly and daily converted), net of discount, excluding tax, and its definition is shown on screen.
 
 ### 5.9 Customer portal
-- FR-34 A customer sees only their own subscriptions and invoices, with a print view. Where the plan allows, they can pause, close or renew from the portal.
+- FR-34 A customer sees only their own subscriptions and invoices, with a print view. Portal self-service pause, close and renew is **core**, shown only where the plan flags allow it, and goes through the same state function as staff.
 
 ## 6. Non-functional requirements
 - NFR-1 Every page responds in under 2 seconds with thousands of subscriptions. Seed 5,000+ to prove it. Paginate on the server, index foreign keys, avoid N+1 queries (`selectinload`, `joinedload`), compute dashboard totals with SQL aggregates, debounce search (about 300 ms).
