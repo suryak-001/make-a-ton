@@ -1,4 +1,4 @@
-"""Owner: A — billing plans. Staff can read; only the admin can change them."""
+"""Owner: B — billing plans. Staff can read; only the admin can change them."""
 
 from datetime import date
 

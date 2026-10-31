@@ -1,4 +1,4 @@
-"""Owner: B — line price preview, so forms show the same numbers the backend will store.
+"""Owner: A — line price preview, so forms show the same numbers the backend will store.
 The frontend never re-implements pricing math; it calls this."""
 
 from decimal import Decimal

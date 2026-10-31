@@ -1,4 +1,4 @@
-"""Owner: A — sign up (A1), sign in/out, password reset (A2)."""
+"""Owner: B — sign up, sign in/out and password reset (B1)."""
 
 from datetime import timedelta
 

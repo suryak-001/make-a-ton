@@ -1,4 +1,4 @@
-"""Owner: A — subscriptions for admin and staff: list, edit, state changes, renewal, lifecycle job."""
+"""Owner: B — subscriptions for admin and staff: list, edit, state changes, renewal, lifecycle job."""
 
 from datetime import date
 

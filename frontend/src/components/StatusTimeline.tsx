@@ -8,12 +8,12 @@ import { Badge } from './ui'
 export function StatusStepper({ status }: { status: SubStatus }) {
   const here = STATUS_FLOW.indexOf(status === 'PAUSED' ? 'ACTIVE' : status)
   return (
-    <ol className="flex flex-wrap items-center gap-2 text-sm" aria-label="Subscription progress">
+    <ol className="flex flex-wrap items-center gap-2 text-[12px]" aria-label="Subscription progress">
       {STATUS_FLOW.map((step, i) => (
         <li key={step} className="flex items-center gap-2" aria-current={i === here ? 'step' : undefined}>
           <span
             className={clsx(
-              'rounded-full border px-3 py-1',
+              'border px-2.5 py-1',
               i < here && 'border-brand/30 bg-brand/5 text-brand',
               i === here && 'border-brand bg-brand text-brand-fg font-medium',
               i > here && 'border-line text-muted',
@@ -21,7 +21,7 @@ export function StatusStepper({ status }: { status: SubStatus }) {
           >
             {STATUS_LABEL[step]}
           </span>
-          {i === here && status === 'PAUSED' && <Badge className="bg-orange-50 text-orange-800">Paused</Badge>}
+          {i === here && status === 'PAUSED' && <Badge className="border-danger/30 bg-danger/10 text-danger">Paused</Badge>}
           {i < STATUS_FLOW.length - 1 && <span className="text-muted" aria-hidden>→</span>}
         </li>
       ))}
@@ -34,8 +34,8 @@ export function EventHistory({ events, staff = false }: { events: SubEvent[]; st
   return (
     <ol className="grid gap-3">
       {events.map((e) => (
-        <li key={e.id} className="grid grid-cols-[auto_1fr] gap-3 text-sm">
-          <span className="mt-1.5 size-2 rounded-full bg-brand" aria-hidden />
+        <li key={e.id} className="grid grid-cols-[auto_1fr] gap-3 text-[13px]">
+          <span className="mt-1.5 size-2 rotate-45 bg-brand" aria-hidden />
           <div>
             <p className="font-medium">{eventText(e.from_status, e.to_status)}</p>
             <p className="text-xs text-muted">

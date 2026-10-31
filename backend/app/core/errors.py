@@ -1,4 +1,4 @@
-"""Owner: A. Services raise these; the handler registered in main.py turns them into JSON responses.
+"""Owner: B. Services raise these; the handler registered in main.py turns them into JSON responses.
 
 Error bodies follow FastAPI's validation format when tied to a form field
 (`detail: [{loc: ["body", field], msg}]`) and are `detail: "message"` otherwise, so the frontend's

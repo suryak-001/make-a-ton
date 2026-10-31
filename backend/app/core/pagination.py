@@ -1,4 +1,4 @@
-"""Owner: A. Server-side pagination used by every list endpoint (thousands of rows must stay fast)."""
+"""Owner: B. Server-side pagination used by every list endpoint (thousands of rows must stay fast)."""
 
 from dataclasses import dataclass
 from typing import Annotated, Any

@@ -1,4 +1,4 @@
-"""Owner: A — the subscription state machine, history, pricing of lines and the lifecycle job.
+"""Owner: B — the subscription state machine, history, pricing of lines and the lifecycle job.
 
 Contract with B: an ACTIVE subscription always has next_invoice_date, payment_term_days and at least
 one line. next_invoice_date is always add_period(start_date, period, n) for some n, so month-end

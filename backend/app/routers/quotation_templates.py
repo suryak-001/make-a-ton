@@ -1,4 +1,4 @@
-"""Owner: A — quotation templates (admin + staff): a plan plus product lines and a validity in days."""
+"""Owner: B — quotation templates (admin + staff): a plan plus product lines and a validity in days."""
 
 from datetime import date
 

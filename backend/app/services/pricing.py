@@ -1,5 +1,4 @@
-"""Owner: B. Pure functions, no DB access. A uses these for subscription/quotation line amounts and
-B uses them for invoices, so both sides always agree on the numbers."""
+"""Owner: A. Pure functions, no DB access. Both tracks use these so quotes and invoices agree."""
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal

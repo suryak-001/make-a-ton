@@ -1,4 +1,4 @@
-"""Owner: A — a customer's own subscriptions, with self-service pause / resume / close / renew.
+"""Owner: B — a customer's own subscriptions, with self-service pause / resume / close / renew.
 
 Every query is scoped to the signed-in customer. Someone else's record is a 404, never a 403,
 so its existence isn't leaked. Drafts are internal and are never shown.

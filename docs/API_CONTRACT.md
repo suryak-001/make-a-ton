@@ -11,7 +11,7 @@ Base path `/api`. Session cookie auth (same origin through the Vite proxy). `A` 
 - A change to this file needs both people to agree in chat first.
 
 ## Endpoints
-Updates use `PUT`. Status: **done** means built, merged to `main` and covered by backend tests.
+Updates use `PUT`, except taxes and discounts which use `PATCH`. Status: **done** means built, merged to `main` and covered by backend tests.
 
 | Area | Endpoint | Who | Status |
 |---|---|---|---|
@@ -26,14 +26,14 @@ Updates use `PUT`. Status: **done** means built, merged to `main` and covered by
 | Subscriptions | `POST subscriptions/{id}/transition` body `{"to": "CONFIRMED", "reason": null}`, `POST subscriptions/{id}/renew`, `POST subscriptions/run-lifecycle` | S | done |
 | Portal | `GET portal/subscriptions`, `GET portal/subscriptions/{id}`, `POST portal/subscriptions/{id}/transition`, `POST portal/subscriptions/{id}/renew` | C | done |
 | Pricing | `POST pricing/preview` | any signed in | done |
-| Taxes | `GET/POST taxes`, `GET/PUT/DELETE taxes/{id}` | A (read: S) | todo |
-| Discounts | `GET/POST discounts`, `GET/PUT/DELETE discounts/{id}` | A (read: S) | todo |
-| Billing | `POST invoices/run-billing` body `{"as_of": "2026-10-31"}` (optional) | S | todo |
-| Invoices | `GET invoices` (filters: status, overdue, customer, from, to), `GET invoices/{id}` | S | todo |
-| Invoices | `POST invoices/{id}/confirm`, `/cancel`, `/send`, `GET invoices/{id}/print` | S | todo |
-| Payments | `GET/POST payments` (invoice_id, method, amount, payment_date, note) | S | todo |
-| Reports | `GET reports/summary` (filters: from, to, plan, customer, status), `GET reports/overdue`, `GET reports/revenue-by-month` | S | todo |
-| Portal | `GET portal/invoices`, `GET portal/invoices/{id}`, `GET portal/invoices/{id}/print` | C | todo |
+| Taxes | `GET/POST taxes`, `PATCH taxes/{id}` | A (read: S) | done |
+| Discounts | `GET/POST discounts`, `PATCH discounts/{id}` | A (read: S) | done |
+| Billing | `POST invoices/run-billing` body `{"as_of": "2026-10-31"}` (optional) | S | done |
+| Invoices | `GET invoices` (filters: status, overdue, customer, from, to), `GET invoices/{id}` | S | done |
+| Invoices | `POST invoices/{id}/confirm`, `/cancel`, `/send`, `GET invoices/{id}/print` | S | done |
+| Payments | `GET/POST payments` (invoice_id, method, amount, payment_date, note) | S | done |
+| Reports | `GET reports/summary`, `GET reports/overdue`, `GET reports/revenue-by-month` (summary takes dates only for now, see PLAN.md open work) | S | done |
+| Portal | `GET portal/invoices`, `GET portal/invoices/{id}`, `GET portal/invoices/{id}/print` | C | done |
 
 ## Billing run response (`POST invoices/run-billing`)
 ```json
@@ -50,4 +50,4 @@ Updates use `PUT`. Status: **done** means built, merged to `main` and covered by
 `due = created + already_billed + skipped + failed` must always hold. The Billing Run page shows that equation.
 
 ## Seed data
-`uv run python -m app.seed` creates demo users, customers, products, plans, taxes and a discount. Person A adds a larger option (`--big`, step A9) that creates 5,000 subscriptions and their invoices and payments, so the frontend can test pagination and the 2-second target.
+`uv run python -m app.seed` creates demo users, customers, products, plans, taxes and a discount. Add `--big` (`uv run python -m app.seed --big`) for 5,000 subscriptions, so pagination and the 2-second target can be tested. A recorded benchmark is still open work (step M9).

@@ -1,4 +1,4 @@
-"""Owner: A — products, variants, plans, quotation templates."""
+"""Owner: B — products, variants, plans, quotation templates."""
 
 from datetime import date
 from decimal import Decimal

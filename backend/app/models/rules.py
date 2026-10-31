@@ -1,4 +1,4 @@
-"""Owner: B — taxes and discounts."""
+"""Owner: A — taxes and discounts."""
 
 from datetime import date
 from decimal import Decimal

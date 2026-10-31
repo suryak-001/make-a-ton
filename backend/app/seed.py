@@ -1,19 +1,31 @@
-"""Dev seed: wipes and recreates demo data.  Run: `uv run python -m app.seed`
+"""Dev seed: wipes and recreates demo data. Run normally or add ``--big`` for 5,000 subscriptions.
 
-SHARED FILE: Person A edits the catalog/subscription sections, Person B edits the rules/billing sections.
+SHARED FILE: Person A edits rules/billing; Person B edits catalog/subscriptions.
 """
 
+import argparse
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app.core.security import hash_password
 from app.db import SessionLocal
-from app.enums import AmountKind, BillingPeriod, DiscountScope, ProductType, Role, SubscriptionStatus
+from app.enums import (
+    AmountKind,
+    BillingPeriod,
+    DiscountScope,
+    InvoiceStatus,
+    PaymentMethod,
+    ProductType,
+    Role,
+    SubscriptionStatus,
+)
 from app.models import (
     Customer,
     Discount,
+    Invoice,
+    Payment,
     Plan,
     Product,
     ProductVariant,
@@ -25,6 +37,8 @@ from app.models import (
     Tax,
     User,
 )
+from app.services.billing import run_billing
+from app.services.invoices import confirm_invoice
 from app.services.pricing import TaxRule, compute_line
 from app.services.sequence import next_number
 
@@ -49,7 +63,7 @@ def wipe(db) -> None:
     db.execute(text("TRUNCATE " + ", ".join(f'"{t}"' for t in tables) + " RESTART IDENTITY CASCADE"))
 
 
-def main() -> None:
+def main(big: bool = False) -> None:
     with SessionLocal() as db:
         wipe(db)
 
@@ -75,11 +89,11 @@ def main() -> None:
         db.add_all([admin, staff, priya])
         db.flush()
 
-        # ── Section B: taxes ──
+        # ── Section A: taxes ──
         gst18 = Tax(name="GST 18%", kind=AmountKind.PERCENT, rate=D(18))
         db.add_all([gst18, Tax(name="GST 5%", kind=AmountKind.PERCENT, rate=D(5))])
 
-        # ── Section A: customers, catalog, plans, templates ──
+        # ── Section B: customers, catalog, plans, templates ──
         acme = Customer(
             name="Acme Retail", email="priya@acme.test", phone="+91 98765 43210", user_id=priya.id
         )
@@ -188,6 +202,7 @@ def main() -> None:
                     )
                 )
                 previous = step
+            return sub
 
         S = SubscriptionStatus
         # Started 60 days ago, monthly → two periods due, exercises billing catch-up.
@@ -200,7 +215,7 @@ def main() -> None:
         subscription(northwind, monthly, S.QUOTATION, days(7), [(crm, None, 5)])
         subscription(northwind, monthly, S.DRAFT, days(14), [(analytics, None, 2)])
 
-        # ── Section B: discounts (invoices/payments come from the billing run) ──
+        # ── Section A: discounts (invoices/payments come from the billing run) ──
         db.add(
             Discount(
                 name="Volume 10% (10+ seats)",
@@ -216,10 +231,63 @@ def main() -> None:
         )
 
         db.commit()
+        if big:
+            # Enough rows to exercise indexed pagination and report aggregates without changing app logic.
+            for i in range(4_995):
+                customer = (acme, northwind, globex)[i % 3]
+                sub = Subscription(
+                    number=next_number(db, "SUB", "SUB-"),
+                    customer_id=customer.id,
+                    plan_id=monthly.id,
+                    status=S.ACTIVE,
+                    start_date=today,
+                    payment_term_days=15,
+                    next_invoice_date=today,
+                    created_by_id=admin.id,
+                    lines=[
+                        SubscriptionLine(
+                            product_id=analytics.id,
+                            quantity=1 + (i % 5),
+                            unit_price=analytics.sales_price,
+                            amount=analytics.sales_price * (1 + (i % 5)) * D("1.18"),
+                            taxes=[gst18],
+                        )
+                    ],
+                )
+                db.add(sub)
+                if i % 250 == 0:
+                    db.flush()
+            db.commit()
+
+        # Make the default seed immediately demoable: billing, invoice actions, payments and reports all have data.
+        run_billing(db, today)
+        db.commit()
+        invoices = list(db.scalars(select(Invoice).order_by(Invoice.id)))
+        for invoice in invoices:
+            confirm_invoice(db, invoice.id)
+        if invoices:
+            invoices[0].due_date = days(-10)  # one overdue example
+        if len(invoices) > 1:
+            paid = invoices[1]
+            paid.amount_paid = paid.total
+            paid.status = InvoiceStatus.PAID
+            db.add(
+                Payment(
+                    invoice_id=paid.id,
+                    method=PaymentMethod.BANK_TRANSFER,
+                    amount=paid.total,
+                    payment_date=today,
+                    note="Seeded paid invoice",
+                    recorded_by_id=staff.id,
+                )
+            )
+        db.commit()
     print(
         "Seeded. Logins: admin@brightloop.test / Admin@12345, staff@brightloop.test / Staff@12345, priya@acme.test / Customer@123"
     )
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--big", action="store_true", help="seed 5,000 subscriptions with invoices")
+    main(parser.parse_args().big)

@@ -1,4 +1,4 @@
-"""Owner: A — customer records (admin + staff). A customer may exist without a portal login."""
+"""Owner: B — customer records (admin + staff). A customer may exist without a portal login."""
 
 from fastapi import APIRouter, status
 from sqlalchemy import func, or_, select

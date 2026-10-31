@@ -1,30 +1,34 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import { useAuth } from '@/auth/context'
 import { buttonClass } from '@/components/button-class'
 import { DataTable, Pagination } from '@/components/DataTable'
 import { Alert, Input, Select } from '@/components/forms'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Button, PageHeader } from '@/components/ui'
+import { Sheet } from '@/components/Sheet'
+import { SubscriptionView } from '@/components/SubscriptionView'
+import { ActionButtons } from '@/components/ActionButtons'
 import { api, ApiError, type Page, qs } from '@/lib/api'
 import { formatDate, money, planLabel } from '@/lib/format'
 import { useDebounced } from '@/lib/hooks'
 import { usePlans } from '@/lib/queries'
 import { STATUS_LABEL } from '@/lib/subscriptions'
-import type { SubListItem } from '@/lib/types'
+import type { SubListItem, Subscription } from '@/lib/types'
 
 export default function SubscriptionList() {
   const { user } = useAuth()
-  const navigate = useNavigate()
   const qc = useQueryClient()
   const plans = usePlans()
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [planId, setPlanId] = useState('')
   const [page, setPage] = useState(1)
+  const [selectedId, setSelectedId] = useState<number>()
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string }>()
   const debounced = useDebounced(q)
+  const selected = useQuery({ queryKey: ['/subscriptions', selectedId], queryFn: () => api.get<Subscription>(`/subscriptions/${selectedId}`), enabled: Boolean(selectedId) })
 
   const list = useQuery({
     queryKey: ['/subscriptions', 'list', debounced, status, planId, page],
@@ -75,9 +79,9 @@ export default function SubscriptionList() {
           <Alert kind={notice.kind}>{notice.text}</Alert>
         </div>
       )}
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="mb-4 flex flex-wrap gap-3 rounded-md border border-line bg-paper p-3">
         <Input value={q} onChange={(e) => reset(() => setQ(e.target.value))} placeholder="Search by number or customer…" aria-label="Search subscriptions" className="max-w-sm" />
-        <Select value={status} onChange={(e) => reset(() => setStatus(e.target.value))} aria-label="Filter by status" className="w-44">
+        <Select value={status} onChange={(e) => reset(() => setStatus(e.target.value))} aria-label="Filter by status" className="w-full sm:w-44">
           <option value="">All statuses</option>
           {Object.entries(STATUS_LABEL).map(([value, label]) => (
             <option key={value} value={value}>
@@ -85,7 +89,7 @@ export default function SubscriptionList() {
             </option>
           ))}
         </Select>
-        <Select value={planId} onChange={(e) => reset(() => setPlanId(e.target.value))} aria-label="Filter by plan" className="w-52">
+        <Select value={planId} onChange={(e) => reset(() => setPlanId(e.target.value))} aria-label="Filter by plan" className="w-full sm:w-52">
           <option value="">All plans</option>
           {plans.data?.map((p) => (
             <option key={p.id} value={p.id}>
@@ -98,7 +102,7 @@ export default function SubscriptionList() {
         loading={list.isPending}
         rows={list.data?.items}
         rowKey={(s) => s.id}
-        onRowClick={(s) => navigate(String(s.id))}
+        onRowClick={(s) => setSelectedId(s.id)}
         empty={debounced || status || planId ? 'No subscriptions match these filters.' : 'No subscriptions yet.'}
         columns={[
           { header: 'Number', cell: (s) => <span className="font-medium">{s.number}</span> },
@@ -111,6 +115,9 @@ export default function SubscriptionList() {
         ]}
       />
       {list.data && <Pagination page={page} pageSize={list.data.page_size} total={list.data.total} onPage={setPage} />}
+      <Sheet open={Boolean(selectedId)} onClose={() => setSelectedId(undefined)} title={selected.data?.number ?? 'Subscription detail'} subtitle="Review the agreement without leaving the list.">
+        {selected.isPending ? <p className="text-[13px] text-muted">Loading subscription…</p> : selected.data ? <SubscriptionView staff sub={selected.data} actions={<div className="grid gap-3"><ActionButtons sub={selected.data} base="/subscriptions" /><Link to={`${selected.data.id}`} className={buttonClass('outline', 'w-full')}>Open full record →</Link></div>} /> : <Alert>Could not load this subscription.</Alert>}
+      </Sheet>
     </>
   )
 }

@@ -1,4 +1,4 @@
-"""Owner: A — turns Subscription rows into API shapes (shared by staff, template and portal routers)."""
+"""Owner: B — turns Subscription rows into API shapes (shared by staff, template and portal routers)."""
 
 from datetime import date
 from decimal import Decimal

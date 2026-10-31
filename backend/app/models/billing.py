@@ -1,4 +1,4 @@
-"""Owner: B — invoices, invoice lines, discount usage, payments."""
+"""Owner: A — invoices, invoice lines, discount usage, payments."""
 
 from datetime import date
 from decimal import Decimal
@@ -24,7 +24,8 @@ class Invoice(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    number: Mapped[str] = mapped_column(unique=True)  # INV-2026-00001
+    # Assigned only when the draft is confirmed. PostgreSQL permits multiple NULLs in a UNIQUE column.
+    number: Mapped[str | None] = mapped_column(unique=True)  # INV-2026-00001
     subscription_id: Mapped[int] = mapped_column(ForeignKey("subscription.id"))
     customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"))
     status: Mapped[InvoiceStatus] = mapped_column(
@@ -60,6 +61,7 @@ class InvoiceLine(Base):
     quantity: Mapped[int]
     unit_price: Mapped[Money]
     discount_amount: Mapped[Money] = mapped_column(default=Decimal("0"))
+    tax_rate: Mapped[Money] = mapped_column(default=Decimal("0"))
     tax_amount: Mapped[Money] = mapped_column(default=Decimal("0"))
     total: Mapped[Money]
 
