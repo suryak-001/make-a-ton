@@ -42,6 +42,12 @@ class Totals:
     total: Decimal
 
 
+def discount_for(base: Decimal, rule: DiscountRule) -> Decimal:
+    """The amount a discount takes off `base`. It never takes more than `base`."""
+    raw = base * rule.value / 100 if rule.kind == AmountKind.PERCENT else rule.value
+    return min(round2(raw), base)
+
+
 def compute_line(
     unit_price: Decimal,
     quantity: int,
@@ -52,10 +58,7 @@ def compute_line(
     effective_unit = round2(unit_price + variant_extra)
     subtotal = round2(effective_unit * quantity)
 
-    discount_amount = ZERO
-    if discount is not None:
-        raw = subtotal * discount.value / 100 if discount.kind == AmountKind.PERCENT else discount.value
-        discount_amount = min(round2(raw), subtotal)
+    discount_amount = discount_for(subtotal, discount) if discount is not None else ZERO
 
     # Taxes apply to the discounted amount. FIXED taxes are per unit.
     taxable = subtotal - discount_amount

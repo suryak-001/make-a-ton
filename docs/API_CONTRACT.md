@@ -24,16 +24,16 @@ Updates use `PUT`. Status: **done** means built, merged to `main` and covered by
 | Templates | `GET/POST quotation-templates`, `GET/PUT/DELETE quotation-templates/{id}`, `POST quotation-templates/{id}/create-subscription` | A (read: S) | done |
 | Subscriptions | `GET/POST subscriptions` (filters: status, customer, plan), `GET/PUT/DELETE subscriptions/{id}` | S | done |
 | Subscriptions | `POST subscriptions/{id}/transition` body `{"to": "CONFIRMED", "reason": null}`, `POST subscriptions/{id}/renew`, `POST subscriptions/run-lifecycle` | S | done |
-| Portal | `GET portal/subscriptions`, `GET portal/subscriptions/{id}`, `POST portal/subscriptions/{id}/transition`, `POST portal/subscriptions/{id}/renew` | C | done |
+| Portal | `GET portal-subscriptions`, `GET portal-subscriptions/{id}`, `POST portal-subscriptions/{id}/transition`, `POST portal-subscriptions/{id}/renew` | C | done |
 | Pricing | `POST pricing/preview` | any signed in | done |
-| Taxes | `GET/POST taxes`, `GET/PUT/DELETE taxes/{id}` | A (read: S) | todo |
-| Discounts | `GET/POST discounts`, `GET/PUT/DELETE discounts/{id}` | A (read: S) | todo |
-| Billing | `POST invoices/run-billing` body `{"as_of": "2026-10-31"}` (optional) | S | todo |
-| Invoices | `GET invoices` (filters: status, overdue, customer, from, to), `GET invoices/{id}` | S | todo |
-| Invoices | `POST invoices/{id}/confirm`, `/cancel`, `/send`, `GET invoices/{id}/print` | S | todo |
-| Payments | `GET/POST payments` (invoice_id, method, amount, payment_date, note) | S | todo |
-| Reports | `GET reports/summary` (filters: from, to, plan, customer, status), `GET reports/overdue`, `GET reports/revenue-by-month` | S | todo |
-| Portal | `GET portal/invoices`, `GET portal/invoices/{id}`, `GET portal/invoices/{id}/print` | C | todo |
+| Taxes | `GET/POST taxes`, `GET/PUT/DELETE taxes/{id}` (filters: q, active). Names are unique. Delete is refused with 409 once a subscription line uses the tax; mark it inactive instead | A (read: S) | done |
+| Discounts | `GET/POST discounts`, `GET/PUT/DELETE discounts/{id}` (filters: q, active). Rule errors name the field (`value`, `end_date`, `product_ids`, `usage_limit`). Delete is refused with 409 once the discount is on an invoice | A | done |
+| Billing | `POST invoices/run-billing` body `{"as_of": "2026-10-31"}` (optional, defaults to today) | S | done |
+| Invoices | `GET invoices` (filters: status, overdue, customer_id, from_date, to_date), `GET invoices/{id}` | S | done |
+| Invoices | `POST invoices/{id}/confirm`, `/cancel`, `/send`, `GET invoices/{id}/print`. Every invoice carries `allowed_actions` (`confirm`, `cancel`, `pay`, `send`, `print`); the server refuses anything not listed and the UI draws only what is listed | S | done |
+| Payments | `GET/POST payments` (invoice_id, method, amount, payment_date, note; list filters: invoice_id, method, from_date, to_date). Partial allowed, overpayment and future dates refused | S | done |
+| Reports | `GET reports/summary`, `GET reports/overdue`, `GET reports/revenue-by-month`. All take the filters from_date, to_date, plan_id, customer_id, status. Overdue figures are always as of today | S | done |
+| Portal | `GET portal-invoices`, `GET portal-invoices/{id}`, `GET portal-invoices/{id}/print` | C | done |
 
 ## Billing run response (`POST invoices/run-billing`)
 ```json
@@ -47,7 +47,12 @@ Updates use `PUT`. Status: **done** means built, merged to `main` and covered by
   "errors": []
 }
 ```
-`due = created + already_billed + skipped + failed` must always hold. The Billing Run page shows that equation.
+`due = created + already_billed + skipped + failed` must always hold, and the Billing Run page shows that equation.
+
+- `due`: billing periods due on or before `as_of`, across all active subscriptions.
+- `already_billed`: the invoice for that period already existed, so nothing was duplicated.
+- `failed`: the period could not be billed. It is listed in `errors` (`subscription_id`, `period_start`, `error`), stays due, and is retried on the next run.
+- `skipped`: later periods of a subscription whose earlier period failed. They are not attempted, so they are billed in order next run.
 
 ## Seed data
 `uv run python -m app.seed` creates demo users, customers, products, plans, taxes and a discount. Person A adds a larger option (`--big`, step A9) that creates 5,000 subscriptions and their invoices and payments, so the frontend can test pagination and the 2-second target.

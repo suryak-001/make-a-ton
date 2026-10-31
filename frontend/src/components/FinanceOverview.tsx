@@ -6,7 +6,8 @@ import { StatusBadge } from './StatusBadge'
 import { Button, Card } from './ui'
 import { api, qs } from '@/lib/api'
 import { formatDate, money } from '@/lib/format'
-import type { Invoice, RevenuePoint, Summary } from '@/lib/types'
+import { METRIC_DEFINITIONS, type MetricKey } from '@/lib/metrics'
+import type { Invoice, ReportFilters, RevenuePoint, Summary } from '@/lib/types'
 
 const ACCENTS = ['bg-brand', 'bg-danger', 'bg-yellow', 'bg-green']
 
@@ -33,18 +34,18 @@ function compactMoney(value: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 1 }).format(value)
 }
 
-export function FinanceOverview({ fromDate, toDate }: { fromDate?: string; toDate?: string }) {
+export function FinanceOverview({ filters = {} }: { filters?: ReportFilters }) {
   const navigate = useNavigate()
   const [months, setMonths] = useState(6)
-  const suffix = qs({ from_date: fromDate, to_date: toDate })
-  const summary = useQuery({ queryKey: ['/reports/summary', fromDate, toDate], queryFn: () => api.get<Summary>(`/reports/summary${suffix}`) })
-  const revenue = useQuery({ queryKey: ['/reports/revenue'], queryFn: () => api.get<RevenuePoint[]>('/reports/revenue-by-month') })
-  const overdue = useQuery({ queryKey: ['/reports/overdue'], queryFn: () => api.get<Invoice[]>('/reports/overdue') })
-  const primary = summary.data ? [
-    ['Active subscriptions', String(summary.data.active_subscriptions), 'Live agreements'],
-    ['Monthly revenue', money(summary.data.mrr), 'Before tax'],
-    ['Invoiced', money(summary.data.invoiced), 'Confirmed + paid'],
-    ['Collected', money(summary.data.collected), 'Cash received'],
+  const suffix = qs(filters)
+  const summary = useQuery({ queryKey: ['/reports', 'summary', filters], queryFn: () => api.get<Summary>(`/reports/summary${suffix}`) })
+  const revenue = useQuery({ queryKey: ['/reports', 'revenue', filters], queryFn: () => api.get<RevenuePoint[]>(`/reports/revenue-by-month${suffix}`) })
+  const overdue = useQuery({ queryKey: ['/reports', 'overdue', filters], queryFn: () => api.get<Invoice[]>(`/reports/overdue${qs({ plan_id: filters.plan_id, customer_id: filters.customer_id })}`) })
+  const primary: [string, string, string, MetricKey][] = summary.data ? [
+    ['Active subscriptions', String(summary.data.active_subscriptions), 'Live agreements', 'active'],
+    ['Monthly revenue', money(summary.data.mrr), 'Before tax and discounts', 'mrr'],
+    ['Invoiced', money(summary.data.invoiced), 'Confirmed + paid', 'invoiced'],
+    ['Collected', money(summary.data.collected), 'Cash received', 'collected'],
   ] : []
   const points = revenueTimeline(revenue.data ?? [], months)
   const max = Math.max(1, ...(points.flatMap((point) => [Number(point.invoiced), Number(point.collected)])))
@@ -52,8 +53,8 @@ export function FinanceOverview({ fromDate, toDate }: { fromDate?: string; toDat
 
   return <div className="grid gap-5">
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {summary.isPending ? Array.from({ length: 4 }, (_, index) => <Card key={index} className="h-28 animate-pulse bg-paper" />) : primary.map(([label, value, hint], index) => (
-        <Card key={label} className="relative overflow-hidden p-4">
+      {summary.isPending ? Array.from({ length: 4 }, (_, index) => <Card key={index} className="h-28 animate-pulse bg-paper" />) : primary.map(([label, value, hint, metric], index) => (
+        <Card key={label} className="relative overflow-hidden p-4" title={METRIC_DEFINITIONS[metric]}>
           <span className={`absolute inset-x-0 top-0 h-1 ${ACCENTS[index]}`} />
           <div className="flex items-start justify-between gap-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.13em] text-muted">{label}</p>
@@ -95,13 +96,13 @@ export function FinanceOverview({ fromDate, toDate }: { fromDate?: string; toDat
         </div> : <p className="py-16 text-center text-[13px] text-muted">Revenue appears after invoices are confirmed.</p>}
       </Card>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-        <Card className="relative overflow-hidden !border-ink !bg-ink p-5 !text-paper">
+        <Card className="relative overflow-hidden !border-ink !bg-ink p-5 !text-paper" title={METRIC_DEFINITIONS.outstanding}>
           <span className="absolute -right-7 -top-7 size-24 rounded-full border-[14px] border-yellow" />
           <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-paper/60">Outstanding</p>
           <p className="mt-8 text-[25px] font-medium tracking-[-0.04em]">{summary.data ? money(summary.data.outstanding) : '—'}</p>
           <p className="mt-2 text-[11px] text-paper/60">Still to collect</p>
         </Card>
-        <Card className="relative overflow-hidden !border-danger !bg-danger p-5 !text-paper">
+        <Card className="relative overflow-hidden !border-danger !bg-danger p-5 !text-paper" title={METRIC_DEFINITIONS.overdue}>
           <span className="absolute right-5 top-5 size-5 rotate-45 bg-yellow" />
           <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-paper/70">Overdue</p>
           <p className="mt-8 text-[25px] font-medium tracking-[-0.04em]">{summary.data ? money(summary.data.overdue_amount) : '—'}</p>
@@ -114,5 +115,22 @@ export function FinanceOverview({ fromDate, toDate }: { fromDate?: string; toDat
       <div className="mb-3 flex items-end justify-between gap-4"><div><p className="text-[10px] font-medium uppercase tracking-[0.15em] text-danger">Needs action</p><h2 className="mt-1 text-[16px] font-medium">Overdue invoices</h2></div><Button variant="ghost" onClick={() => navigate('/invoices')}>View all →</Button></div>
       <DataTable loading={overdue.isPending} rows={overdue.data} rowKey={(invoice) => invoice.id} onRowClick={(invoice) => navigate(`/invoices/${invoice.id}`)} empty="Nothing is overdue." columns={[{ header: 'Invoice', cell: (invoice) => invoice.number ?? `Draft #${invoice.id}` }, { header: 'Customer', cell: (invoice) => invoice.customer.name }, { header: 'Due', cell: (invoice) => formatDate(invoice.due_date) }, { header: 'Status', cell: (invoice) => <StatusBadge status={invoice.status} /> }, { header: 'Outstanding', className: 'text-right font-medium text-danger', cell: (invoice) => money(invoice.outstanding) }]} />
     </section>
+    <MetricDefinitions />
   </div>
+}
+
+function MetricDefinitions() {
+  return (
+    <details className="rounded-md border border-line bg-paper p-4 text-sm">
+      <summary className="cursor-pointer font-medium">How these numbers are calculated</summary>
+      <dl className="mt-3 grid gap-3">
+        {(Object.keys(METRIC_DEFINITIONS) as MetricKey[]).map((key) => (
+          <div key={key}>
+            <dt className="font-medium capitalize">{key === 'mrr' ? 'Monthly revenue (MRR)' : key}</dt>
+            <dd className="text-muted">{METRIC_DEFINITIONS[key]}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  )
 }

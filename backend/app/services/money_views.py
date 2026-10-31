@@ -8,6 +8,7 @@ from app.core.errors import NotFound
 from app.enums import InvoiceStatus
 from app.models import Invoice, Payment
 from app.schemas.money import InvoiceOut, PaymentOut
+from app.services.invoices import allowed_actions
 
 INVOICE_LOAD = (
     joinedload(Invoice.customer),
@@ -38,6 +39,7 @@ def invoice_out(invoice: Invoice, today: date | None = None) -> InvoiceOut:
         overdue=invoice.status == InvoiceStatus.CONFIRMED and invoice.due_date < today and outstanding > 0,
         sent_at=invoice.sent_at,
         created_at=invoice.created_at,
+        allowed_actions=allowed_actions(invoice),
         lines=invoice.lines,
     )
 

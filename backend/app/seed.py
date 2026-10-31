@@ -39,7 +39,7 @@ from app.models import (
 )
 from app.services.billing import run_billing
 from app.services.invoices import confirm_invoice
-from app.services.pricing import TaxRule, compute_line
+from app.services.pricing import TaxRule, compute_line, round2
 from app.services.sequence import next_number
 
 D = Decimal
@@ -61,6 +61,92 @@ def wipe(db) -> None:
         .all()
     )
     db.execute(text("TRUNCATE " + ", ".join(f'"{t}"' for t in tables) + " RESTART IDENTITY CASCADE"))
+
+
+VOLUME_CUSTOMERS = 200
+VOLUME_SUBSCRIPTIONS = 4_995  # with the 5 demo subscriptions this makes 5,000
+VOLUME_SPREAD_DAYS = 110  # start dates reach back this far, so billing catches up on several periods
+# Share of each invoice paid, repeating down the list: mostly settled, some part-paid, some unpaid.
+PAYMENT_PATTERN = [D(1)] * 6 + [D("0.5")] * 2 + [D(0)] * 2
+
+
+def seed_volume(db, admin, plan, product, tax) -> None:
+    """Thousands of active subscriptions across many customers, started over the last few months."""
+    customers = [
+        Customer(name=f"Customer {n:03d}", email=f"customer{n:03d}@volume.test")
+        for n in range(VOLUME_CUSTOMERS)
+    ]
+    db.add_all(customers)
+    db.flush()
+    for i in range(VOLUME_SUBSCRIPTIONS):
+        start = days(-(i % VOLUME_SPREAD_DAYS))
+        quantity = 1 + i % 5
+        db.add(
+            Subscription(
+                number=next_number(db, "SUB", "SUB-"),
+                customer_id=customers[i % VOLUME_CUSTOMERS].id,
+                plan_id=plan.id,
+                status=SubscriptionStatus.ACTIVE,
+                start_date=start,
+                payment_term_days=15,
+                next_invoice_date=start,
+                created_by_id=admin.id,
+                lines=[
+                    SubscriptionLine(
+                        product_id=product.id,
+                        quantity=quantity,
+                        unit_price=product.sales_price,
+                        amount=product.sales_price * quantity * D("1.18"),
+                        taxes=[tax],
+                    )
+                ],
+            )
+        )
+        if i % 250 == 0:
+            db.flush()
+    db.commit()
+
+
+def confirm_all_invoices(db) -> None:
+    for invoice_id in db.scalars(select(Invoice.id).order_by(Invoice.id)).all():
+        confirm_invoice(db, invoice_id)
+    db.commit()
+
+
+def add_demo_payment_and_overdue(db, staff) -> None:
+    """The small seed: one overdue invoice and one paid invoice, enough to see every state."""
+    invoices = list(db.scalars(select(Invoice).order_by(Invoice.id).limit(2)))
+    if invoices:
+        invoices[0].due_date = days(-10)
+    if len(invoices) > 1:
+        record_payment(db, invoices[1], invoices[1].total, staff, today, "Seeded paid invoice")
+
+
+def record_history(db, staff) -> None:
+    """The big seed: invoices dated at their period, then payments of varying size spread after them."""
+    db.execute(text("UPDATE invoice SET invoice_date = period_start, due_date = period_start + 15"))
+    db.expire_all()
+    for index, invoice in enumerate(db.scalars(select(Invoice).order_by(Invoice.id)).all()):
+        amount = round2(invoice.total * PAYMENT_PATTERN[index % len(PAYMENT_PATTERN)])
+        if amount > 0:
+            paid_on = min(today, invoice.invoice_date + timedelta(days=index % 20))
+            record_payment(db, invoice, amount, staff, paid_on, "Seeded payment")
+
+
+def record_payment(db, invoice, amount, staff, paid_on, note) -> None:
+    db.add(
+        Payment(
+            invoice_id=invoice.id,
+            method=PaymentMethod.BANK_TRANSFER,
+            amount=amount,
+            payment_date=paid_on,
+            note=note,
+            recorded_by_id=staff.id,
+        )
+    )
+    invoice.amount_paid += amount
+    if invoice.amount_paid >= invoice.total:
+        invoice.status = InvoiceStatus.PAID
 
 
 def main(big: bool = False) -> None:
@@ -232,55 +318,16 @@ def main(big: bool = False) -> None:
 
         db.commit()
         if big:
-            # Enough rows to exercise indexed pagination and report aggregates without changing app logic.
-            for i in range(4_995):
-                customer = (acme, northwind, globex)[i % 3]
-                sub = Subscription(
-                    number=next_number(db, "SUB", "SUB-"),
-                    customer_id=customer.id,
-                    plan_id=monthly.id,
-                    status=S.ACTIVE,
-                    start_date=today,
-                    payment_term_days=15,
-                    next_invoice_date=today,
-                    created_by_id=admin.id,
-                    lines=[
-                        SubscriptionLine(
-                            product_id=analytics.id,
-                            quantity=1 + (i % 5),
-                            unit_price=analytics.sales_price,
-                            amount=analytics.sales_price * (1 + (i % 5)) * D("1.18"),
-                            taxes=[gst18],
-                        )
-                    ],
-                )
-                db.add(sub)
-                if i % 250 == 0:
-                    db.flush()
-            db.commit()
+            seed_volume(db, admin, monthly, analytics, gst18)
 
-        # Make the default seed immediately demoable: billing, invoice actions, payments and reports all have data.
+        # Billing, invoice actions, payments and reports all have data straight after seeding.
         run_billing(db, today)
         db.commit()
-        invoices = list(db.scalars(select(Invoice).order_by(Invoice.id)))
-        for invoice in invoices:
-            confirm_invoice(db, invoice.id)
-        if invoices:
-            invoices[0].due_date = days(-10)  # one overdue example
-        if len(invoices) > 1:
-            paid = invoices[1]
-            paid.amount_paid = paid.total
-            paid.status = InvoiceStatus.PAID
-            db.add(
-                Payment(
-                    invoice_id=paid.id,
-                    method=PaymentMethod.BANK_TRANSFER,
-                    amount=paid.total,
-                    payment_date=today,
-                    note="Seeded paid invoice",
-                    recorded_by_id=staff.id,
-                )
-            )
+        confirm_all_invoices(db)
+        if big:
+            record_history(db, staff)
+        else:
+            add_demo_payment_and_overdue(db, staff)
         db.commit()
     print(
         "Seeded. Logins: admin@brightloop.test / Admin@12345, staff@brightloop.test / Staff@12345, priya@acme.test / Customer@123"
@@ -289,5 +336,7 @@ def main(big: bool = False) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--big", action="store_true", help="seed 5,000 subscriptions with invoices")
+    parser.add_argument(
+        "--big", action="store_true", help="seed 5,000 subscriptions with their invoices and payments"
+    )
     main(parser.parse_args().big)

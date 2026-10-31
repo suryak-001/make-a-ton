@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from app.enums import AmountKind, DiscountScope, InvoiceStatus, PaymentMethod
 from app.schemas.common import MoneyIn, Name, OptionalText, blank_to_none
@@ -9,9 +9,16 @@ from app.schemas.common import MoneyIn, Name, OptionalText, blank_to_none
 
 class TaxIn(BaseModel):
     name: Name
-    kind: AmountKind
-    rate: MoneyIn
+    kind: AmountKind = AmountKind.PERCENT
+    rate: MoneyIn  # 18 = 18% when PERCENT; an amount per unit when FIXED
     active: bool = True
+
+    @field_validator("rate")
+    @classmethod
+    def percent_is_at_most_100(cls, rate: Decimal, info: ValidationInfo) -> Decimal:
+        if info.data.get("kind") == AmountKind.PERCENT and rate > 100:
+            raise ValueError("A percentage tax can't be more than 100.")
+        return rate
 
 
 class TaxOut(TaxIn):
@@ -34,17 +41,20 @@ class DiscountIn(BaseModel):
     product_ids: list[int] = []
     subscription_ids: list[int] = []
 
-    @model_validator(mode="after")
-    def valid_rule(self):
-        if self.end_date and self.end_date < self.start_date:
-            raise ValueError("The discount can't end before it starts.")
-        if self.kind == AmountKind.PERCENT and self.value > 100:
+    @field_validator("value")
+    @classmethod
+    def percent_is_at_most_100(cls, value: Decimal, info: ValidationInfo) -> Decimal:
+        if info.data.get("kind") == AmountKind.PERCENT and value > 100:
             raise ValueError("A percentage discount can't exceed 100%.")
-        if self.scope == DiscountScope.PRODUCT and not self.product_ids:
-            raise ValueError("Select at least one product for a product discount.")
-        if self.scope == DiscountScope.SUBSCRIPTION and not self.subscription_ids:
-            raise ValueError("Select at least one subscription for a subscription discount.")
-        return self
+        return value
+
+    @field_validator("end_date")
+    @classmethod
+    def ends_after_it_starts(cls, end_date: date | None, info: ValidationInfo) -> date | None:
+        start_date = info.data.get("start_date")
+        if end_date and start_date and end_date < start_date:
+            raise ValueError("The discount can't end before it starts.")
+        return end_date
 
 
 class DiscountOut(BaseModel):
@@ -109,6 +119,7 @@ class InvoiceOut(BaseModel):
     overdue: bool
     sent_at: datetime | None
     created_at: datetime
+    allowed_actions: list[str]
     lines: list[InvoiceLineOut] = []
 
 
@@ -117,8 +128,14 @@ class BillingRunIn(BaseModel):
 
 
 class BillingRunOut(BaseModel):
+    """`due = created + already_billed + skipped + failed` always holds (docs/API_CONTRACT.md)."""
+
+    as_of: date
+    due: int  # billing periods that were due on or before `as_of`
     created: int
-    skipped: int
+    already_billed: int  # the invoice for that period already existed
+    skipped: int  # not attempted: an earlier period of the same subscription failed, so it stays due
+    failed: int
     errors: list[dict]
 
 
@@ -131,6 +148,13 @@ class PaymentIn(BaseModel):
 
     def model_post_init(self, __context) -> None:
         self.note = blank_to_none(self.note)
+
+    @field_validator("payment_date")
+    @classmethod
+    def not_in_the_future(cls, v: date) -> date:
+        if v > date.today():
+            raise ValueError("The payment date can't be in the future.")
+        return v
 
 
 class PaymentOut(BaseModel):

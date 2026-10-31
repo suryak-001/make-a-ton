@@ -1,124 +1,208 @@
-"""Database-side financial aggregates for the dashboard and reports."""
+"""Database-side financial aggregates for the dashboard and reports. Every number is a SQL aggregate
+(`func.sum`, `func.count`, `group_by`), never a loop over rows."""
 
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Annotated
 
-from fastapi import APIRouter
-from sqlalchemy import case, func, select
+from fastapi import APIRouter, Depends
+from sqlalchemy import ColumnElement, Numeric, Select, case, cast, func, select
 
 from app.core.deps import Db, StaffUser
 from app.enums import BillingPeriod, InvoiceStatus, SubscriptionStatus
 from app.models import Invoice, Payment, Plan, Subscription, SubscriptionLine
 from app.schemas.money import InvoiceOut, RevenuePoint, SummaryOut
+from app.services.invoice_queries import overdue_conditions, present_conditions
 from app.services.money_views import INVOICE_LOAD, invoice_out
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
-ZERO = Decimal("0")
+ZERO = Decimal("0.00")
+OVERDUE_LIST_LIMIT = 100
+MONTHS_SHOWN = 12
+
+# How many billing periods fit in a month (MRR is monthly-equivalent).
+PERIODS_PER_MONTH = case(
+    (Plan.billing_period == BillingPeriod.DAILY, Decimal("30")),
+    (Plan.billing_period == BillingPeriod.WEEKLY, Decimal("4.345")),
+    (Plan.billing_period == BillingPeriod.YEARLY, Decimal("0.083333")),
+    else_=Decimal("1"),
+)
+
+
+def _money_sum(expression) -> ColumnElement:
+    """SUM as a two-decimal amount, 0.00 when there are no rows (the API always sends money as "12.00")."""
+    return cast(func.coalesce(func.sum(expression), 0), Numeric(12, 2))
+
+
+@dataclass
+class ReportFilters:
+    from_date: date | None = None
+    to_date: date | None = None
+    plan_id: int | None = None
+    customer_id: int | None = None
+    status: InvoiceStatus | None = None  # of the invoices; by default Confirmed and Paid count
+
+
+Filters = Annotated[ReportFilters, Depends()]
+
+
+# ───────────────────────────── filters as SQL conditions ─────────────────────────────
+
+
+def _invoice_conditions(f: ReportFilters) -> list:
+    status = Invoice.status == f.status if f.status else Invoice.status.in_(_COUNTED_STATUSES)
+    return [
+        status,
+        *present_conditions(
+            (f.from_date, lambda v: Invoice.invoice_date >= v),
+            (f.to_date, lambda v: Invoice.invoice_date <= v),
+            (f.customer_id, lambda v: Invoice.customer_id == v),
+            (f.plan_id, lambda v: Subscription.plan_id == v),
+        ),
+    ]
+
+
+def _payment_conditions(f: ReportFilters) -> list:
+    return present_conditions(
+        (f.from_date, lambda v: Payment.payment_date >= v),
+        (f.to_date, lambda v: Payment.payment_date <= v),
+        (f.customer_id, lambda v: Invoice.customer_id == v),
+        (f.plan_id, lambda v: Subscription.plan_id == v),
+    )
+
+
+def _who_conditions(f: ReportFilters) -> list:
+    """Customer and plan only, for figures that are about right now (overdue)."""
+    return present_conditions(
+        (f.customer_id, lambda v: Invoice.customer_id == v),
+        (f.plan_id, lambda v: Subscription.plan_id == v),
+    )
+
+
+_COUNTED_STATUSES = [InvoiceStatus.CONFIRMED, InvoiceStatus.PAID]
+
+
+def _invoices_with_subscription(*columns) -> Select:
+    return (
+        select(*columns).select_from(Invoice).join(Subscription, Subscription.id == Invoice.subscription_id)
+    )
+
+
+def _payments_with_invoice(*columns) -> Select:
+    return (
+        select(*columns)
+        .select_from(Payment)
+        .join(Invoice, Invoice.id == Payment.invoice_id)
+        .join(Subscription, Subscription.id == Invoice.subscription_id)
+    )
+
+
+# ───────────────────────────── the numbers ─────────────────────────────
+
+
+def _active_subscriptions(db: Db, f: ReportFilters) -> int:
+    conditions = present_conditions(
+        (f.customer_id, lambda v: Subscription.customer_id == v),
+        (f.plan_id, lambda v: Subscription.plan_id == v),
+    )
+    stmt = select(func.count()).where(Subscription.status == SubscriptionStatus.ACTIVE, *conditions)
+    return db.scalar(stmt) or 0
+
+
+def _monthly_recurring_revenue(db: Db, f: ReportFilters) -> Decimal:
+    conditions = present_conditions(
+        (f.customer_id, lambda v: Subscription.customer_id == v),
+        (f.plan_id, lambda v: Subscription.plan_id == v),
+    )
+    monthly_amount = SubscriptionLine.unit_price * SubscriptionLine.quantity * PERIODS_PER_MONTH
+    stmt = (
+        select(_money_sum(monthly_amount))
+        .select_from(SubscriptionLine)
+        .join(Subscription, Subscription.id == SubscriptionLine.subscription_id)
+        .join(Plan, Plan.id == Subscription.plan_id)
+        .where(Subscription.status == SubscriptionStatus.ACTIVE, *conditions)
+    )
+    return db.scalar(stmt)
+
+
+def _invoiced_and_outstanding(db: Db, f: ReportFilters) -> tuple[Decimal, Decimal]:
+    stmt = _invoices_with_subscription(
+        _money_sum(Invoice.total), _money_sum(Invoice.total - Invoice.amount_paid)
+    ).where(*_invoice_conditions(f))
+    invoiced, outstanding = db.execute(stmt).one()
+    return invoiced, outstanding
+
+
+def _collected(db: Db, f: ReportFilters) -> Decimal:
+    stmt = _payments_with_invoice(_money_sum(Payment.amount)).where(*_payment_conditions(f))
+    return db.scalar(stmt)
+
+
+def _overdue_totals(db: Db, f: ReportFilters) -> tuple[int, Decimal]:
+    stmt = _invoices_with_subscription(func.count(), _money_sum(Invoice.total - Invoice.amount_paid)).where(
+        *overdue_conditions(), *_who_conditions(f)
+    )
+    count, amount = db.execute(stmt).one()
+    return count, amount
+
+
+# ───────────────────────────── endpoints ─────────────────────────────
 
 
 @router.get("/summary", response_model=SummaryOut)
-def summary(db: Db, _: StaffUser, from_date: date | None = None, to_date: date | None = None):
-    invoice_filter = [Invoice.status.in_([InvoiceStatus.CONFIRMED, InvoiceStatus.PAID])]
-    payment_filter = []
-    if from_date:
-        invoice_filter.append(Invoice.invoice_date >= from_date)
-        payment_filter.append(Payment.payment_date >= from_date)
-    if to_date:
-        invoice_filter.append(Invoice.invoice_date <= to_date)
-        payment_filter.append(Payment.payment_date <= to_date)
-
-    active = (
-        db.scalar(
-            select(func.count())
-            .select_from(Subscription)
-            .where(Subscription.status == SubscriptionStatus.ACTIVE)
-        )
-        or 0
-    )
-    multiplier = case(
-        (Plan.billing_period == BillingPeriod.DAILY, Decimal("30")),
-        (Plan.billing_period == BillingPeriod.WEEKLY, Decimal("4.345")),
-        (Plan.billing_period == BillingPeriod.YEARLY, Decimal("0.083333")),
-        else_=Decimal("1"),
-    )
-    mrr = (
-        db.scalar(
-            select(
-                func.coalesce(
-                    func.sum(SubscriptionLine.unit_price * SubscriptionLine.quantity * multiplier), 0
-                )
-            )
-            .join(Subscription, Subscription.id == SubscriptionLine.subscription_id)
-            .join(Plan, Plan.id == Subscription.plan_id)
-            .where(Subscription.status == SubscriptionStatus.ACTIVE)
-        )
-        or ZERO
-    )
-    inv = db.execute(
-        select(
-            func.coalesce(func.sum(Invoice.total), 0),
-            func.coalesce(func.sum(Invoice.total - Invoice.amount_paid), 0),
-        ).where(*invoice_filter)
-    ).one()
-    collected = db.scalar(select(func.coalesce(func.sum(Payment.amount), 0)).where(*payment_filter)) or ZERO
-    overdue_filter = [
-        Invoice.status == InvoiceStatus.CONFIRMED,
-        Invoice.due_date < date.today(),
-        Invoice.amount_paid < Invoice.total,
-    ]
-    overdue = db.execute(
-        select(func.count(), func.coalesce(func.sum(Invoice.total - Invoice.amount_paid), 0)).where(
-            *overdue_filter
-        )
-    ).one()
+def summary(db: Db, _: StaffUser, filters: Filters):
+    invoiced, outstanding = _invoiced_and_outstanding(db, filters)
+    overdue_count, overdue_amount = _overdue_totals(db, filters)
     return SummaryOut(
-        active_subscriptions=active,
-        mrr=mrr,
-        invoiced=inv[0],
-        collected=collected,
-        outstanding=inv[1],
-        overdue_count=overdue[0],
-        overdue_amount=overdue[1],
+        active_subscriptions=_active_subscriptions(db, filters),
+        mrr=_monthly_recurring_revenue(db, filters),
+        invoiced=invoiced,
+        collected=_collected(db, filters),
+        outstanding=outstanding,
+        overdue_count=overdue_count,
+        overdue_amount=overdue_amount,
     )
 
 
 @router.get("/overdue", response_model=list[InvoiceOut])
-def overdue(db: Db, _: StaffUser):
-    rows = db.scalars(
+def overdue(db: Db, _: StaffUser, filters: Filters):
+    stmt = (
         select(Invoice)
-        .where(
-            Invoice.status == InvoiceStatus.CONFIRMED,
-            Invoice.due_date < date.today(),
-            Invoice.amount_paid < Invoice.total,
-        )
+        .join(Subscription, Subscription.id == Invoice.subscription_id)
+        .where(*overdue_conditions(), *_who_conditions(filters))
         .options(*INVOICE_LOAD)
         .order_by(Invoice.due_date)
-        .limit(100)
-    ).unique()
-    return [invoice_out(row) for row in rows]
+        .limit(OVERDUE_LIST_LIMIT)
+    )
+    return [invoice_out(row) for row in db.scalars(stmt).unique()]
 
 
 @router.get("/revenue-by-month", response_model=list[RevenuePoint])
-def revenue_by_month(db: Db, _: StaffUser):
-    invoice_month = func.to_char(func.date_trunc("month", Invoice.invoice_date), "YYYY-MM")
-    payment_month = func.to_char(func.date_trunc("month", Payment.payment_date), "YYYY-MM")
-    invoice_rows = {
-        month: total
-        for month, total in db.execute(
-            select(invoice_month, func.sum(Invoice.total))
-            .where(Invoice.status.in_([InvoiceStatus.CONFIRMED, InvoiceStatus.PAID]))
-            .group_by(invoice_month)
-        )
-    }
-    payment_rows = {
-        month: total
-        for month, total in db.execute(
-            select(payment_month, func.sum(Payment.amount)).group_by(payment_month)
-        )
-    }
-    months = sorted(set(invoice_rows) | set(payment_rows))[-12:]
+def revenue_by_month(db: Db, _: StaffUser, filters: Filters):
+    invoiced = _totals_by_month(
+        db,
+        _invoices_with_subscription,
+        Invoice.invoice_date,
+        Invoice.total,
+        _invoice_conditions(filters),
+    )
+    collected = _totals_by_month(
+        db,
+        _payments_with_invoice,
+        Payment.payment_date,
+        Payment.amount,
+        _payment_conditions(filters),
+    )
+    months = sorted(invoiced.keys() | collected.keys())[-MONTHS_SHOWN:]
     return [
-        RevenuePoint(month=m, invoiced=invoice_rows.get(m, ZERO), collected=payment_rows.get(m, ZERO))
+        RevenuePoint(month=m, invoiced=invoiced.get(m, ZERO), collected=collected.get(m, ZERO))
         for m in months
     ]
+
+
+def _totals_by_month(db: Db, source, date_column, amount_column, conditions: list) -> dict[str, Decimal]:
+    month = func.to_char(date_column, "YYYY-MM")
+    stmt = source(month, _money_sum(amount_column)).where(*conditions).group_by(month)
+    return {m: total for m, total in db.execute(stmt)}

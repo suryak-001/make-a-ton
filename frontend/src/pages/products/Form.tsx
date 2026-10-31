@@ -3,7 +3,8 @@ import { type FormEvent, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useAuth } from '@/auth/context'
 import { Alert, Checkbox, FormField, Input, Select, Textarea } from '@/components/forms'
-import { Badge, Button, Card, PageHeader } from '@/components/ui'
+import { TaxPicker } from '@/components/TaxPicker'
+import { Button, Card, PageHeader } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
 import type { Product } from '@/lib/types'
 
@@ -16,9 +17,10 @@ type Draft = {
   notes: string
   active: boolean
   variants: VariantDraft[]
+  default_tax_ids: number[]
 }
 
-const EMPTY: Draft = { name: '', type: 'SERVICE', sales_price: '', cost_price: '0', notes: '', active: true, variants: [] }
+const EMPTY: Draft = { name: '', type: 'SERVICE', sales_price: '', cost_price: '0', notes: '', active: true, variants: [], default_tax_ids: [] }
 
 function toDraft(p: Product): Draft {
   return {
@@ -29,6 +31,7 @@ function toDraft(p: Product): Draft {
     notes: p.notes ?? '',
     active: p.active,
     variants: p.variants.map((v) => ({ id: v.id, attribute: v.attribute, value: v.value, extra_price: v.extra_price })),
+    default_tax_ids: p.default_taxes.map((t) => t.id),
   }
 }
 
@@ -63,8 +66,6 @@ function ProductEditor({ product }: { product?: Product }) {
         sales_price: draft.sales_price || '0',
         cost_price: draft.cost_price || '0',
         variants: draft.variants.map((v) => ({ ...v, extra_price: v.extra_price || '0' })),
-        // Taxes are managed on the Taxes page; keep whatever this product already has.
-        default_tax_ids: product?.default_taxes.map((t) => t.id) ?? [],
       }
       return product ? api.put<Product>(`/products/${product.id}`, body) : api.post<Product>('/products', body)
     },
@@ -131,14 +132,11 @@ function ProductEditor({ product }: { product?: Product }) {
             <FormField label="Notes" htmlFor="notes" error={f.notes} className="sm:col-span-2">
               <Textarea id="notes" value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
             </FormField>
-            {product && product.default_taxes.length > 0 && (
-              <p className="flex flex-wrap items-center gap-2 text-sm text-muted sm:col-span-2">
-                Default taxes:
-                {product.default_taxes.map((t) => (
-                  <Badge key={t.id}>{t.name}</Badge>
-                ))}
-              </p>
-            )}
+            <div className="grid gap-1.5 sm:col-span-2">
+              <span className="text-sm font-medium">Taxes</span>
+              <TaxPicker selected={draft.default_tax_ids} onChange={(ids) => set('default_tax_ids', ids)} />
+              <p className="text-xs text-muted">Added to every quote and invoice line for this product. Manage the rules on the Taxes page.</p>
+            </div>
           </Card>
 
           <Card className="p-5">

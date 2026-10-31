@@ -1,14 +1,15 @@
 """Admin-managed automatic discount rules."""
 
 from fastapi import APIRouter, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import AdminUser, Db
-from app.core.errors import Invalid
+from app.core.errors import Conflict, Invalid, NotFound
 from app.core.lookup import get_or_404
 from app.core.pagination import Page, Pages, like_pattern, paginate
-from app.models import Discount, Product, Subscription
+from app.enums import DiscountScope
+from app.models import Discount, DiscountUsage, Product, Subscription
 from app.schemas.money import DiscountIn, DiscountOut
 
 router = APIRouter(prefix="/api/discounts", tags=["discounts"])
@@ -42,30 +43,37 @@ def _out(d: Discount) -> DiscountOut:
 
 
 def _apply(db: Db, discount: Discount, body: DiscountIn) -> None:
-    values = body.model_dump(exclude={"product_ids", "subscription_ids"})
-    for key, value in values.items():
+    products = _find_all(db, Product, body.product_ids, "product_ids", "products")
+    subscriptions = _find_all(db, Subscription, body.subscription_ids, "subscription_ids", "subscriptions")
+    _require_target(body, products, subscriptions)
+    for key, value in body.model_dump(exclude={"product_ids", "subscription_ids"}).items():
         setattr(discount, key, value)
-    products = (
-        list(db.scalars(select(Product).where(Product.id.in_(set(body.product_ids)))))
-        if body.product_ids
-        else []
-    )
-    subscriptions = (
-        list(db.scalars(select(Subscription).where(Subscription.id.in_(set(body.subscription_ids)))))
-        if body.subscription_ids
-        else []
-    )
-    if len(products) != len(set(body.product_ids)):
-        raise Invalid("One of the selected products doesn't exist.", field="product_ids")
-    if len(subscriptions) != len(set(body.subscription_ids)):
-        raise Invalid("One of the selected subscriptions doesn't exist.", field="subscription_ids")
     discount.products = products
     discount.subscriptions = subscriptions
 
 
+def _find_all[T](db: Db, model: type[T], ids: list[int], field: str, label: str) -> list[T]:
+    wanted = set(ids)
+    found = list(db.scalars(select(model).where(model.id.in_(wanted)))) if wanted else []
+    if len(found) != len(wanted):
+        raise Invalid(f"One of the selected {label} doesn't exist.", field=field)
+    return found
+
+
+def _require_target(body: DiscountIn, products: list[Product], subscriptions: list[Subscription]) -> None:
+    if body.scope == DiscountScope.PRODUCT and not products:
+        raise Invalid("Select at least one product for a product discount.", field="product_ids")
+    if body.scope == DiscountScope.SUBSCRIPTION and not subscriptions:
+        raise Invalid(
+            "Select at least one subscription for a subscription discount.", field="subscription_ids"
+        )
+
+
 @router.get("", response_model=Page[DiscountOut])
-def list_discounts(db: Db, _: AdminUser, pages: Pages, q: str | None = None):
+def list_discounts(db: Db, _: AdminUser, pages: Pages, q: str | None = None, active: bool | None = None):
     stmt = select(Discount).options(*_LOAD).order_by(Discount.id.desc())
+    if active is not None:
+        stmt = stmt.where(Discount.active == active)
     if q and q.strip():
         stmt = stmt.where(Discount.name.ilike(like_pattern(q), escape="\\"))
     rows, total = paginate(db, stmt, pages)
@@ -82,9 +90,35 @@ def create_discount(body: DiscountIn, db: Db, _: AdminUser):
     return _out(discount)
 
 
-@router.patch("/{discount_id}", response_model=DiscountOut)
+def _load(db: Db, discount_id: int) -> Discount:
+    discount = db.scalar(select(Discount).where(Discount.id == discount_id).options(*_LOAD))
+    if discount is None:
+        raise NotFound("Discount not found")
+    return discount
+
+
+@router.get("/{discount_id}", response_model=DiscountOut)
+def get_discount(discount_id: int, db: Db, _: AdminUser):
+    return _out(_load(db, discount_id))
+
+
+@router.put("/{discount_id}", response_model=DiscountOut)
 def update_discount(discount_id: int, body: DiscountIn, db: Db, _: AdminUser):
-    discount = get_or_404(db, Discount, discount_id)
+    discount = _load(db, discount_id)
+    if body.usage_limit is not None and body.usage_limit < discount.used_count:
+        raise Invalid(f"It has already been used {discount.used_count} times.", field="usage_limit")
     _apply(db, discount, body)
     db.commit()
     return _out(discount)
+
+
+@router.delete("/{discount_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_discount(discount_id: int, db: Db, _: AdminUser):
+    discount = get_or_404(db, Discount, discount_id)
+    used = db.scalar(
+        select(func.count()).select_from(DiscountUsage).where(DiscountUsage.discount_id == discount.id)
+    )
+    if used:
+        raise Conflict("This discount already appears on invoices. Mark it inactive instead.")
+    db.delete(discount)
+    db.commit()

@@ -14,6 +14,8 @@ export type Customer = {
 export type UserRow = { id: number; email: string; name: string; role: Role; created_at: string }
 
 export type Tax = { id: number; name: string; kind: 'PERCENT' | 'FIXED'; rate: string }
+/** A tax rule as the Taxes screens see it (a product's `default_taxes` only carry the part above). */
+export type TaxRule = Tax & { active: boolean; created_at: string }
 
 export type Variant = { id: number; attribute: string; value: string; extra_price: string }
 
@@ -147,6 +149,8 @@ export type Template = {
 export type PricePreview = { unit_price: string; subtotal: string; discount_amount: string; tax_amount: string; total: string }
 
 export type InvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'PAID' | 'CANCELLED'
+/** What the server allows right now; the buttons are drawn from this list. */
+export type InvoiceAction = 'confirm' | 'cancel' | 'pay' | 'send' | 'print'
 export type InvoiceLine = {
   id: number
   product_id: number | null
@@ -177,6 +181,7 @@ export type Invoice = {
   overdue: boolean
   sent_at: string | null
   created_at: string
+  allowed_actions: InvoiceAction[]
   lines: InvoiceLine[]
 }
 
@@ -222,3 +227,15 @@ export type Summary = {
 }
 
 export type RevenuePoint = { month: string; invoiced: string; collected: string }
+
+export type BillingRun = {
+  as_of: string
+  due: number
+  created: number
+  already_billed: number
+  skipped: number
+  failed: number
+  errors: { subscription_id: number; period_start: string; error: string }[]
+}
+
+export type ReportFilters = { from_date?: string; to_date?: string; plan_id?: string; customer_id?: string }
