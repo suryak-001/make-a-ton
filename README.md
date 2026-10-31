@@ -21,9 +21,10 @@ frontend/   React app (talks to the API through Vite's /api proxy)
 | 3 | Admin | **Products**, **Plans**, **Taxes**, **Discounts** | Variants (Odoo +560), plans that close, pause or renew, tax and discount rules |
 | 4 | Staff | **Quotation templates** → use the template for a customer → Draft → Quotation → Confirmed → Active | Lines, prices and taxes filled in by the server; history shows who did what |
 | 5 | Staff | **Billing run** (set a date two months ahead), run it twice | Invoices created from subscriptions; the second run creates none; counts add up |
-| 6 | Staff | Confirm, send and download an invoice PDF; record a payment; **Bank reconciliation** → Sample statement | Invoice number at confirm, PDF with PAID stamp, payments matched without double entry |
-| 7 | Customer (Priya) | **Home** → Pay the overdue invoice with card `4111 1111 1111 1111`, OTP `123456` | Invoice turns Paid; pause, renew and close appear only where the plan allows |
+| 6 | Staff | Open a Draft invoice → Confirm, Send to customer, Download PDF, then Record payment (try a part-payment first) | Invoice number at confirm, the volume discount applied by itself, PDF with the PAID stamp once settled |
+| 7 | Customer (Priya) | **Home** → Pay the open invoice with card `4111 1111 1111 1111`, OTP `123456`; try Pause or Cancel subscription on a monthly plan | Invoice turns Paid; pause, renew and cancel appear only where the plan allows |
 | 8 | Admin | **Dashboard**, **Reports** | Active subscriptions, revenue, collected, overdue, aging, filters; every page answers in under two seconds even with `--big` data |
+| 9 | Staff | **Bank reconciliation** → Try with a sample statement → Record payments (do this last: it settles the seeded overdue invoice) | Credits matched to open invoices with the reason shown; run it again and nothing is paid twice |
 
 **Where each part of the brief lives:** sign-up, roles and password rules (`/signup`, `/users`) · products and variants (`/products`) · plans (`/plans`) · quotation templates and the subscription life cycle (`/quotation-templates`, `/subscriptions`) · billing day and invoices (`/billing-run`, `/invoices`) · discounts (`/discounts`) · payments (`/payments`, `/reconciliation`) · finance view (`/dashboard`, `/reports`) · customer portal (`/portal/*`). The full click-through script is in [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md).
 

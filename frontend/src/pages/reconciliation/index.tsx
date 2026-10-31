@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { Download, Upload } from 'lucide-react'
+import { Download, FileSpreadsheet, Upload } from 'lucide-react'
 import { type DragEvent, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { buttonClass } from '@/components/button-class'
@@ -77,6 +77,13 @@ export default function ReconciliationPage() {
     setFileName(file.name)
     preview.mutate(await file.text())
   }
+  // Loads the sample straight into the preview, so nobody has to download and re-upload it.
+  const trySample = async () => {
+    const res = await fetch('/api/reconciliation/sample.csv', { credentials: 'same-origin' })
+    if (!res.ok) return
+    setFileName('sample-statement.csv')
+    preview.mutate(await res.text())
+  }
   const onDrop = (event: DragEvent) => {
     event.preventDefault()
     setDragging(false)
@@ -109,10 +116,16 @@ export default function ReconciliationPage() {
         title="Bank reconciliation"
         description="Upload your bank’s statement export. Each credit is matched to an open invoice, with the reason shown. Nothing is recorded until you approve it, and a statement line can never be recorded twice."
         actions={
-          <a href="/api/reconciliation/sample.csv" download className={buttonClass('outline', 'gap-1.5')}>
-            <Download aria-hidden className="size-4" />
-            Sample statement
-          </a>
+          <>
+            <button type="button" className={buttonClass('primary', 'gap-1.5')} disabled={preview.isPending} onClick={() => void trySample()}>
+              <FileSpreadsheet aria-hidden className="size-4" />
+              Try with a sample statement
+            </button>
+            <a href="/api/reconciliation/sample.csv" download className={buttonClass('outline', 'gap-1.5')}>
+              <Download aria-hidden className="size-4" />
+              Download sample
+            </a>
+          </>
         }
       />
 
